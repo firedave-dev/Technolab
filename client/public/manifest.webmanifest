@@ -1,0 +1,17 @@
+{
+  "name": "Technolab ISTA — Gestion scolaire",
+  "short_name": "Technolab ISTA",
+  "description": "Plateforme de gestion scolaire de l'université privée Technolab ISTA",
+  "lang": "fr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#FFFFFF",
+  "theme_color": "#0B2E52",
+  "icons": [
+    { "src": "/marque/icone-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/marque/icone-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/marque/icone-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

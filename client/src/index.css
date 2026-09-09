@@ -1,0 +1,323 @@
+@import 'tailwindcss';
+
+/*
+ * ============================================================================
+ * Design system Technolab ISTA
+ * ============================================================================
+ *
+ * Trois principes structurent ce fichier :
+ *
+ * 1. HIERARCHIE. Chaque niveau d'information a une classe dediee, avec un ecart
+ *    de taille ET de graisse marque. Une valeur cle ne doit jamais se confondre
+ *    avec son libelle : 30 px / 700 contre 12 px / 500.
+ *
+ * 2. REPARTITION DES COULEURS (charte). Le marine porte l'autorite (titres, barre
+ *    laterale, en-tetes), le bleu ISTA les actions, et le bleu clair n'apparait
+ *    jamais sur fond clair.
+ *
+ * 3. CONTRASTE VERIFIE. Chaque couleur portant du texte est mesuree. Les pas -600
+ *    d'emerald et d'amber, longtemps utilises pour les statuts, echouent AA sur
+ *    blanc (3,77:1 et 3,19:1) : les tokens semantiques ci-dessous prennent les
+ *    pas -700, conformes.
+ */
+
+/* ---------------------------------------------------------------------------
+ * Archivo, auto-hebergee.
+ *
+ * Fonte variable : une seule requete couvre toute la plage 400-700, la ou quatre
+ * graisses statiques demandaient quatre fichiers et deux connexions tierces.
+ * `font-display: swap` evite le texte invisible pendant le chargement.
+ * ------------------------------------------------------------------------- */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('/polices/archivo-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('/polices/archivo-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+    U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
+    U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@theme {
+  /* --- Couleurs de charte --- */
+  --color-marine: #0b2e52;
+  --color-ista: #1f6fe0;
+  /* Nomme explicitement : ce bleu ne doit apparaitre que sur un fond fonce. */
+  --color-clair-sur-fonce: #7fb6f7;
+
+  /*
+   * Couleurs semantiques d'etat. Pas -700 : tous conformes AA sur blanc
+   * (5,5:1 / 5,0:1 / 6,5:1). Les pas -50 servent de fond de pastille.
+   */
+  --color-succes: #047857;
+  --color-succes-fond: #ecfdf5;
+  --color-alerte: #b45309;
+  --color-alerte-fond: #fffbeb;
+  --color-retard: #b91c1c;
+  --color-retard-fond: #fef2f2;
+
+  /*
+   * Rampe applicative, derivee du bleu d'action.
+   * Les composants s'appuient sur `brand-*` : les remapper ici propage la charte
+   * a toute l'application. brand-600 EST le bleu ISTA ; brand-900 EST le marine.
+   */
+  --color-brand-50: #eff6ff;
+  --color-brand-100: #dbeafe;
+  --color-brand-200: #bfdbfe;
+  --color-brand-300: #93c5fd;
+  --color-brand-400: #7fb6f7;
+  --color-brand-500: #4a8ce8;
+  --color-brand-600: #1f6fe0;
+  --color-brand-700: #1a5cbc;
+  --color-brand-800: #164a97;
+  --color-brand-900: #0b2e52;
+
+  /* --- Typographie --- */
+  --font-sans: 'Archivo', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  /* --- Elevation : deux niveaux seulement, pour rester sobre --- */
+  --shadow-carte: 0 1px 2px 0 rgb(11 46 82 / 0.04), 0 1px 3px 0 rgb(11 46 82 / 0.06);
+  --shadow-carte-survol: 0 4px 12px -2px rgb(11 46 82 / 0.10), 0 2px 6px -2px rgb(11 46 82 / 0.06);
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-slate-50 text-slate-700 antialiased;
+    font-family: var(--font-sans);
+    /* Chiffres proportionnels par defaut : `tabular-nums` est reserve aux tableaux. */
+    font-variant-numeric: proportional-nums;
+  }
+
+  /*
+   * Focus visible homogene (accessibilite clavier).
+   * Sur la barre laterale marine, l'anneau passe au bleu clair pour rester visible.
+   */
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-ista;
+  }
+
+  .sur-marine :focus-visible {
+    @apply outline-clair-sur-fonce;
+  }
+}
+
+@layer components {
+  /* ========================= Typographie ========================= */
+
+  /*
+   * Echelle de titres. L'ecart entre deux niveaux porte a la fois sur la taille
+   * et sur la graisse : c'est ce qui evite l'aplatissement general.
+   */
+  .titre-page {
+    @apply text-2xl font-bold text-marine;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+  }
+
+  .titre-section {
+    @apply text-base font-bold text-marine;
+    letter-spacing: -0.01em;
+  }
+
+  .titre-carte {
+    @apply text-sm font-bold text-marine;
+  }
+
+  /*
+   * Valeur cle : le chiffre est le message. Tres grand, tres gras, interlettrage
+   * resserre — il doit se lire avant son libelle.
+   */
+  .valeur-cle {
+    @apply text-3xl font-bold text-marine;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+  }
+
+  .valeur-cle-sm {
+    @apply text-xl font-bold text-marine;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+  }
+
+  /* Libelle d'un indicateur : discret, mais lisible (4,8:1 sur blanc). */
+  .label-indicateur {
+    @apply text-xs font-medium text-slate-500;
+  }
+
+  .texte-secondaire {
+    @apply text-xs text-slate-500;
+  }
+
+  /*
+   * Titre institutionnel : Archivo Bold, capitales, interlettrage -1,5 %
+   * (specification de la charte pour le nom de l'etablissement).
+   */
+  .titre-institutionnel {
+    @apply font-bold uppercase text-marine;
+    letter-spacing: -0.015em;
+  }
+
+  /*
+   * Libelle en capitales : Archivo Medium, interlettrage +28 %
+   * (specification de la charte, par exemple la baseline « Universite privee »).
+   */
+  .libelle-capitales {
+    @apply font-medium uppercase;
+    letter-spacing: 0.28em;
+  }
+
+  /* ========================= Surfaces ========================= */
+
+  /*
+   * Carte. Le padding par defaut est genereux : la densite uniforme etait la
+   * principale cause de fatigue visuelle sur les ecrans denses.
+   */
+  .carte {
+    @apply rounded-xl border border-slate-200 bg-white;
+    box-shadow: var(--shadow-carte);
+  }
+
+  /* Carte cliquable : l'elevation au survol signale l'affordance. */
+  .carte-interactive {
+    @apply rounded-xl border border-slate-200 bg-white transition duration-200;
+    box-shadow: var(--shadow-carte);
+  }
+
+  .carte-interactive:hover {
+    @apply border-brand-200;
+    box-shadow: var(--shadow-carte-survol);
+    transform: translateY(-1px);
+  }
+
+  /* Le mouvement est retire pour qui a demande a en voir moins. */
+  @media (prefers-reduced-motion: reduce) {
+    .carte-interactive {
+      @apply transition-none;
+    }
+    .carte-interactive:hover {
+      transform: none;
+    }
+  }
+
+  /* ========================= Formulaires ========================= */
+
+  .champ {
+    @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900
+           placeholder:text-slate-400 transition
+           focus:border-ista focus:ring-2 focus:ring-brand-100 focus:outline-none
+           disabled:cursor-not-allowed disabled:bg-slate-100;
+  }
+
+  .champ-erreur {
+    @apply border-retard focus:border-retard focus:ring-red-100;
+  }
+
+  .label {
+    @apply mb-1.5 block text-sm font-medium text-slate-700;
+  }
+
+  /* ========================= Pastilles d'etat ========================= */
+
+  .pastille {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+
+  .pastille-succes,
+  .pastille-alerte,
+  .pastille-retard,
+  .pastille-neutre {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+
+  .pastille-succes { @apply bg-succes-fond text-succes; }
+  .pastille-alerte { @apply bg-alerte-fond text-alerte; }
+  .pastille-retard { @apply bg-retard-fond text-retard; }
+  .pastille-neutre { @apply bg-slate-100 text-slate-600; }
+
+  /* ========================= Accessibilite ========================= */
+
+  /* Lien d'evitement : premier element focusable, masque tant qu'il n'a pas le focus. */
+  .lien-evitement {
+    @apply sr-only rounded-lg bg-marine px-4 py-2 text-sm font-medium text-white
+           focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100];
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Impression des documents officiels (bulletin, releve).
+ *
+ * Principe : on masque tout, puis on rend visible le seul document et sa
+ * descendance. C'est plus robuste que de masquer l'habillage element par
+ * element — une barre laterale ajoutee plus tard ne reapparaitra pas sur le
+ * papier par oubli.
+ *
+ * `visibility` plutot que `display` : les ancetres du document conservent leur
+ * mise en page, seul leur rendu est supprime.
+ * ------------------------------------------------------------------------- */
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 8mm;
+  }
+
+  body {
+    background: #ffffff;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  .document-imprimable,
+  .document-imprimable * {
+    visibility: visible;
+  }
+
+  .document-imprimable {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    box-shadow: none;
+    border: 0;
+  }
+
+  /* Elements d'interface qui n'ont pas de sens sur une feuille. */
+  .sans-impression {
+    display: none !important;
+  }
+
+  /* Les aplats de couleur doivent etre imprimes, pas convertis en blanc. */
+  .document-imprimable * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Une ligne de tableau ne doit jamais etre coupee entre deux pages. */
+  .document-imprimable tr,
+  .document-imprimable thead {
+    break-inside: avoid;
+  }
+
+  .document-imprimable thead {
+    display: table-header-group;
+  }
+}

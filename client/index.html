@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Technolab ISTA - Gestion scolaire</title>
+    <meta name="description" content="Plateforme de gestion scolaire de l'universite privee Technolab ISTA" />
+
+    <!-- Couleur de la barre systeme sur mobile : marine de la charte -->
+    <meta name="theme-color" content="#0B2E52" />
+
+    <!--
+      Icone de marque. Le SVG est servi en premier : net a toute taille et sur tout
+      ecran. Les PNG restent declares en repli pour les navigateurs sans favicon
+      vectoriel, et pour l'ecran d'accueil iOS qui n'accepte que du bitmap.
+    -->
+    <link rel="icon" type="image/svg+xml" href="/marque/icone-marine.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/marque/icone-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/marque/icone-16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/marque/icone-180.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+
+    <!--
+      Archivo, auto-hebergee (voir src/index.css). Une fonte variable couvre la plage
+      400-700 en un seul fichier : plus de requete vers un domaine tiers, et le rendu
+      ne depend plus de la disponibilite de Google Fonts.
+      Le fichier latin est precharge : c'est la police du premier rendu.
+    -->
+    <link
+      rel="preload"
+      href="/polices/archivo-latin.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
