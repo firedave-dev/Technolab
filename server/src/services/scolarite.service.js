@@ -1,9 +1,32 @@
 /**
  * Regles de calcul et de permission communes aux modules notes, examens et absences.
  *
- * Calcul d'une moyenne : chaque note est ramenee sur 20 (une interro sur 10 et un
- * devoir sur 20 pesent alors la meme chose a coefficient egal), puis ponderee par le
- * coefficient de l'evaluation. Les copies marquees "absent" sont exclues du calcul.
+ * MOYENNE D'UN GROUPE DE NOTES — chaque note est ramenee sur 20 (une interro sur 10
+ * et un devoir sur 20 pesent alors la meme chose a coefficient egal), puis ponderee
+ * par le coefficient de l'evaluation. Les copies marquees "absent" sont exclues :
+ * une copie non rendue n'est pas un zero merite.
+ *
+ * MOYENNE D'UNE MATIERE — elle ne moyenne PAS toutes les notes ensemble. Les
+ * evaluations sont d'abord separees en deux groupes, chacun moyenne de son cote :
+ *
+ *   moyenne de classe    devoirs, interrogations, TP et projets (le controle continu)
+ *   moyenne d'examen     les examens
+ *
+ * puis composees en donnant a l'examen le double du poids du controle continu :
+ *
+ *   moyenne de matiere = (moyenne d'examen x 2 + moyenne de classe) / 3
+ *
+ * Pourquoi separer avant de composer, plutot que de donner un gros coefficient a
+ * l'examen : le poids de l'examen serait alors dilue par le NOMBRE de devoirs. Une
+ * matiere a douze interrogations et une matiere a deux devoirs ne repartiraient plus
+ * le meme equilibre entre controle continu et examen, alors que la regle de
+ * l'etablissement est la meme partout. En moyennant chaque groupe d'abord, le rapport
+ * 2/3 - 1/3 est garanti quel que soit le nombre d'evaluations de chaque cote.
+ *
+ * Tant qu'un des deux groupes est vide — cas normal avant la session d'examens —
+ * la moyenne de matiere est celle du groupe renseigne. Appliquer la formule a un
+ * groupe absent reviendrait a le compter pour zero et a afficher, en cours d'annee,
+ * une moyenne effondree qui ne veut rien dire.
  */
 import { Matiere } from '../models/Matiere.js';
 import { Evaluation } from '../models/Evaluation.js';
@@ -27,6 +50,26 @@ export function moyennePonderee(elements) {
   }
 
   return poids ? arrondir(total / poids) : null;
+}
+
+/**
+ * Types d'evaluation qui alimentent la moyenne de classe.
+ * Tout ce qui n'est pas un examen est du controle continu.
+ */
+export const TYPES_TRAVAUX_DE_CLASSE = ['devoir', 'interrogation', 'tp', 'projet'];
+
+/** Poids de l'examen relativement au controle continu, qui vaut 1. */
+export const POIDS_EXAMEN = 2;
+
+/**
+ * Compose la moyenne d'une matiere a partir de ses deux composantes.
+ * Un groupe absent (`null`) est ignore plutot que compte pour zero.
+ */
+export function moyenneMatiere(moyenneClasse, moyenneExamen) {
+  if (moyenneExamen === null) return moyenneClasse;
+  if (moyenneClasse === null) return moyenneExamen;
+
+  return arrondir((moyenneExamen * POIDS_EXAMEN + moyenneClasse) / (POIDS_EXAMEN + 1));
 }
 
 /** Mention attribuee a une moyenne sur 20. */
@@ -143,9 +186,17 @@ export async function calculerBulletin(etudiantId, { periode, inclureNonPubliees
         };
       });
 
-      const moyenne = moyennePonderee(
-        lignes.map((l, i) => ({ note: l.valeur, bareme: evals[i].bareme, coefficient: evals[i].coefficient }))
-      );
+      // Chaque groupe est moyenne de son cote, puis les deux sont composes.
+      const peser = (predicat) =>
+        moyennePonderee(
+          lignes
+            .map((l, i) => ({ note: l.valeur, bareme: evals[i].bareme, coefficient: evals[i].coefficient, type: evals[i].type }))
+            .filter((e) => predicat(e.type))
+        );
+
+      const moyenneClasse = peser((type) => TYPES_TRAVAUX_DE_CLASSE.includes(type));
+      const moyenneExamen = peser((type) => type === 'examen');
+      const moyenne = moyenneMatiere(moyenneClasse, moyenneExamen);
 
       return {
         matiere: {
@@ -158,6 +209,8 @@ export async function calculerBulletin(etudiantId, { periode, inclureNonPubliees
             : null,
         },
         evaluations: lignes,
+        moyenneClasse,
+        moyenneExamen,
         moyenne,
         mention: mention(moyenne),
       };
@@ -198,7 +251,9 @@ export async function calculerBulletin(etudiantId, { periode, inclureNonPubliees
     mention: mention(moyenneGenerale),
     rang,
     effectif: camarades.length,
-    moyenneClasse: moyennes.length
+    // Moyenne de la PROMOTION, a ne pas confondre avec la moyenne de classe d'une
+    // matiere ci-dessus : celle-ci compare l'etudiant a ses camarades.
+    moyenneGeneraleClasse: moyennes.length
       ? arrondir(moyennes.reduce((s, m) => s + m, 0) / moyennes.length)
       : null,
   };

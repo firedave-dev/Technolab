@@ -282,9 +282,51 @@ resynchroniser quand une note change.
 ### Calcul des moyennes
 
 Chaque note est d'abord **ramenée sur 20** — une interrogation sur 10 et un devoir sur 20 pèsent
-alors identiquement à coefficient égal — puis pondérée par le coefficient de l'évaluation. La
-moyenne générale pondère ensuite les moyennes de matières par le coefficient de la matière. Le rang
-est établi en calculant la moyenne de chaque étudiant de la classe.
+alors identiquement à coefficient égal — puis pondérée par le coefficient de l'évaluation. Les
+copies marquées « absent » sont exclues : une copie non rendue n'est pas un zéro mérité.
+
+**La moyenne d'une matière ne moyenne pas toutes ses notes ensemble.** Les évaluations sont
+réparties en deux groupes, chacun moyenné de son côté :
+
+| Composante | Types d'évaluation |
+| --- | --- |
+| Moyenne de classe | `devoir`, `interrogation`, `tp`, `projet` |
+| Moyenne d'examen | `examen` |
+
+puis composées en donnant à l'examen le double du poids du contrôle continu :
+
+```
+moyenne de matière = (moyenne d'examen × 2 + moyenne de classe) / 3
+```
+
+**Pourquoi séparer avant de composer** plutôt que d'attribuer un gros coefficient à l'examen : le
+poids de l'examen serait alors dilué par le **nombre** de devoirs. Une matière à douze
+interrogations et une matière à deux devoirs ne répartiraient plus le même équilibre entre contrôle
+continu et examen, alors que la règle de l'établissement est la même partout. En moyennant chaque
+groupe d'abord, le rapport ⅔–⅓ est garanti quel que soit le nombre d'évaluations de chaque côté.
+
+**Tant qu'un des deux groupes est vide** — le cas normal avant la session d'examens — la moyenne de
+la matière est celle du groupe renseigné. Appliquer la formule à un groupe absent reviendrait à le
+compter pour zéro et à afficher, en cours d'année, une moyenne effondrée qui ne veut rien dire.
+
+La moyenne générale pondère ensuite les moyennes de matières par le coefficient de la matière. Le
+rang est établi en calculant la moyenne générale de chaque étudiant de la classe.
+
+#### Deux « moyennes de classe » à ne pas confondre
+
+Le terme désigne deux choses différentes selon l'échelle, et l'API les nomme distinctement :
+
+| Champ | Portée | Sens |
+| --- | --- | --- |
+| `matieres[].moyenneClasse` | une matière | le contrôle continu de **l'étudiant** |
+| `moyenneGeneraleClasse` | le bulletin | la moyenne générale de **la promotion** |
+
+Le second portait auparavant le nom `moyenneClasse`. Il a été renommé lors de l'introduction de la
+règle ci-dessus : les confondre afficherait à l'étudiant la moyenne de ses camarades à la place de
+la sienne. Un test le verrouille (`la moyenne de la promotion porte un nom distinct`).
+
+Le bulletin imprime les deux composantes à côté de la moyenne qui en découle, et rappelle la formule
+en pied de document : le lecteur doit pouvoir refaire l'opération à la main depuis le papier.
 
 ### Publication des notes
 
@@ -335,10 +377,20 @@ dans l'en-tête.
 
 ### Tests
 
-`npm test` lance les trois suites : **109 assertions** de bout en bout (15 + 44 + 50). La suite
-Phase 3 couvre notamment la délégation par matière, le barème, l'exclusion des absents du calcul,
-la bascule de publication et sa notification, le rang et le taux de réussite, les deux types de
-conflits d'examen, l'appel rejouable, la justification et le cloisonnement élève/parent.
+`npm test` lance les six suites : **252 assertions** de bout en bout (15 + 47 + 54 + 41 + 34 + 61).
+
+La suite Phase 3 (54 assertions) couvre la délégation par matière, le barème, l'exclusion des
+absents du calcul, la bascule de publication et sa notification, le rang et le taux de réussite,
+les deux types de conflits d'examen, l'appel rejouable, la justification et le cloisonnement
+élève/parent.
+
+Quatre assertions verrouillent la composition de la moyenne. La première ne se contente pas de
+vérifier que la formule tombe juste : elle **recalcule les deux composantes** depuis les notes du
+bulletin, matière par matière. C'est ce qui prouve que le serveur a rangé chaque évaluation dans le
+bon groupe — un examen compté à tort dans le contrôle continu donnerait une formule exacte sur des
+composantes fausses. Les trois autres vérifient qu'une matière porte bien les deux composantes,
+que la moyenne obtenue penche du côté de l'examen dès que les deux diffèrent, et que la moyenne de
+la promotion porte un nom distinct.
 
 ---
 
@@ -637,7 +689,7 @@ bandeau, sa plaque étant au même `#0B2E52`.
 
 ### Tests
 
-La suite Phase 6 (52 assertions) vérifie les six ratios de contraste, la monotonie et l'extrémité
+La suite Phase 6 (61 assertions) vérifie les six ratios de contraste, la monotonie et l'extrémité
 claire de la rampe des graphiques, l'intégrité des fichiers de marque, la présence des trois
 couleurs dans le gabarit email, l'échappement du HTML, la version texte brut, le repli du
 transport email, le fait qu'un échec d'envoi ne lève pas d'exception, et l'embarquement du logo
@@ -826,6 +878,45 @@ et laissent partir la page en ligne avec un trou :
 - un fichier est ré-exporté à une autre taille que celle déclarée, ce qui réintroduit le
   décalage de mise en page que `width`/`height` évitait. Les dimensions réelles sont lues
   dans l'en-tête VP8 du WebP.
+
+### Retrait du rôle « concierge »
+
+Le rôle a été retiré du référentiel : il ne portait aucune permission propre, et
+aucun écran ne lui était réservé.
+
+Le retrait touche **cinq** endroits, et le référentiel n'en est qu'un :
+
+| Fichier | Ce qui y était déclaré |
+| --- | --- |
+| [server/src/config/roles.js](server/src/config/roles.js) | l'énumération elle-même |
+| [server/src/models/User.js](server/src/models/User.js) | le préfixe de matricule |
+| [client/src/router/navigation.js](client/src/router/navigation.js) | les modules visibles |
+| [client/src/utils/roles.js](client/src/utils/roles.js) | le libellé et la pastille |
+| [server/src/seed/index.js](server/src/seed/index.js) | le compte de démonstration |
+
+**Les comptes existants ne sont pas supprimés.** Dix-huit champs d'autres collections
+désignent un utilisateur — qui a pointé une absence, qui a encaissé un paiement, qui l'a
+validé. Effacer un compte laisserait ces références dans le vide et rendrait la piste
+d'audit illisible rétroactivement : on ne saurait plus qui a saisi une opération
+comptable de l'an dernier.
+
+La migration les **désactive** donc, ce qui coupe la connexion et les droits tout en
+laissant l'historique lisible :
+
+```bash
+cd server
+node src/seed/retirer-role.js concierge              # rapport, sans écriture
+node src/seed/retirer-role.js concierge --appliquer  # désactive
+```
+
+Ces comptes portent alors un rôle absent de l'énumération. C'est sans effet à la lecture
+— Mongoose ne valide qu'à l'écriture — mais toute modification ultérieure de la fiche
+échouera tant qu'un rôle courant ne lui est pas attribué. Le rapport le signale.
+
+**Un test verrouille le retrait** ([phase2](server/tests/phase2-gestion.test.mjs)) : retirer
+un rôle du référentiel ne suffit pas si la validation Zod, elle, l'accepte encore. Le test
+tente de créer un compte « concierge » et exige un refus — sans quoi le rôle
+reviendrait par la porte de l'API.
 
 ---
 

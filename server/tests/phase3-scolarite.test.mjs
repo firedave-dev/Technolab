@@ -178,6 +178,84 @@ try {
     bulletinStaff?.moyenneGenerale !== null && bulletinStaff?.rang >= 1 && Boolean(bulletinStaff?.mention),
     `rang ${bulletinStaff?.rang}/${bulletinStaff?.effectif} — ${bulletinStaff?.mention}`);
 
+  // ---- Composition de la moyenne de matiere ----
+  //
+  // On ne verifie pas seulement que la formule tombe juste : on RECALCULE les deux
+  // composantes depuis les notes du bulletin. C'est ce qui prouve que le serveur a
+  // bien range chaque evaluation dans son groupe. Un examen compte a tort dans la
+  // moyenne de classe donnerait une formule exacte sur des composantes fausses.
+  const TYPES_CLASSE = ['devoir', 'interrogation', 'tp', 'projet'];
+
+  const moyenneGroupe = (lignes) => {
+    let total = 0;
+    let poids = 0;
+    for (const l of lignes) {
+      if (l.absent || l.valeur === null || l.valeur === undefined) continue;
+      total += (l.valeur / l.evaluation.bareme) * 20 * l.evaluation.coefficient;
+      poids += l.evaluation.coefficient;
+    }
+    return poids ? Math.round((total / poids) * 100) / 100 : null;
+  };
+
+  const composee = (classe, examen) => {
+    if (examen === null) return classe;
+    if (classe === null) return examen;
+    return Math.round(((examen * 2 + classe) / 3) * 100) / 100;
+  };
+
+  const ecarts = [];
+  for (const ligne of bulletinStaff?.matieres || []) {
+    const attenduClasse = moyenneGroupe(
+      ligne.evaluations.filter((e) => TYPES_CLASSE.includes(e.evaluation.type))
+    );
+    const attenduExamen = moyenneGroupe(
+      ligne.evaluations.filter((e) => e.evaluation.type === 'examen')
+    );
+
+    if (ligne.moyenneClasse !== attenduClasse) {
+      ecarts.push(`${ligne.matiere.code} classe ${ligne.moyenneClasse} != ${attenduClasse}`);
+    }
+    if (ligne.moyenneExamen !== attenduExamen) {
+      ecarts.push(`${ligne.matiere.code} examen ${ligne.moyenneExamen} != ${attenduExamen}`);
+    }
+    if (ligne.moyenne !== composee(attenduClasse, attenduExamen)) {
+      ecarts.push(
+        `${ligne.matiere.code} moyenne ${ligne.moyenne} != ${composee(attenduClasse, attenduExamen)}`
+      );
+    }
+  }
+
+  verifier('bulletin : les deux composantes sont calculees sur les bons types',
+    ecarts.length === 0, ecarts.slice(0, 3).join(' ; ') || `${bulletinStaff?.matieres?.length} matieres`);
+
+  const avecLesDeux = (bulletinStaff?.matieres || []).find(
+    (m) => m.moyenneClasse !== null && m.moyenneExamen !== null
+  );
+
+  verifier('bulletin : une matiere porte bien les deux composantes',
+    Boolean(avecLesDeux),
+    avecLesDeux
+      ? `${avecLesDeux.matiere.code} : classe ${avecLesDeux.moyenneClasse}, examen ${avecLesDeux.moyenneExamen} -> ${avecLesDeux.moyenne}`
+      : 'aucun examen seme : la formule ne serait pas demontrable');
+
+  // L'examen pese double : la moyenne de matiere doit donc se tenir du cote de
+  // l'examen des que les deux composantes different.
+  verifier('bulletin : l examen pese deux fois la moyenne de classe',
+    !avecLesDeux
+    || avecLesDeux.moyenneClasse === avecLesDeux.moyenneExamen
+    || Math.abs(avecLesDeux.moyenne - avecLesDeux.moyenneExamen)
+       < Math.abs(avecLesDeux.moyenne - avecLesDeux.moyenneClasse),
+    avecLesDeux
+      ? `${avecLesDeux.moyenne} entre classe ${avecLesDeux.moyenneClasse} et examen ${avecLesDeux.moyenneExamen}`
+      : '—');
+
+  // Le nom « moyenneClasse » designe desormais le controle continu d'une matiere.
+  // La moyenne de la promotion, elle, porte un nom distinct : les confondre
+  // afficherait la moyenne des camarades a la place de celle de l'etudiant.
+  verifier('bulletin : la moyenne de la promotion porte un nom distinct',
+    bulletinStaff?.moyenneGeneraleClasse !== undefined && bulletinStaff?.moyenneClasse === undefined,
+    `promotion ${bulletinStaff?.moyenneGeneraleClasse}`);
+
   const avantPublication = (await appel(`/bulletins/${etudiantCible}`, { token: etudiant }))
     .data?.bulletin?.matieres
     ?.find((m) => m.matiere.id === maMatiere.id)

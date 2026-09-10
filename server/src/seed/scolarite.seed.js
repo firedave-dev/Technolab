@@ -38,10 +38,20 @@ const PROGRAMMES = {
   ],
 };
 
-/** Deux evaluations par matiere : une interrogation et un devoir. */
+/**
+ * Trois evaluations par matiere, choisies pour alimenter LES DEUX composantes de
+ * la moyenne : l'interrogation et le devoir forment la moyenne de classe, l'examen
+ * forme la moyenne d'examen. Sans un examen seme, la formule
+ * (examen x 2 + classe) / 3 ne serait jamais visible sur un bulletin de
+ * demonstration, et la colonne resterait vide.
+ *
+ * Le devoir reste non publie : il montre a l'ecran la difference entre le bulletin
+ * provisoire du personnel et celui que voit l'etudiant.
+ */
 const MODELE_EVALUATIONS = [
-  { titre: 'Interrogation n°1', type: 'interrogation', bareme: 10, coefficient: 1, jourDecale: -30 },
-  { titre: 'Devoir surveille n°1', type: 'devoir', bareme: 20, coefficient: 2, jourDecale: -12 },
+  { titre: 'Interrogation n°1', type: 'interrogation', bareme: 10, coefficient: 1, jourDecale: -30, publiee: true },
+  { titre: 'Devoir surveille n°1', type: 'devoir', bareme: 20, coefficient: 2, jourDecale: -12, publiee: false },
+  { titre: 'Examen de fin de semestre', type: 'examen', bareme: 20, coefficient: 1, jourDecale: -5, publiee: true },
 ];
 
 const dansNJours = (n) => {
@@ -84,10 +94,12 @@ export async function seedScolarite() {
         matieresCreees += 1;
       }
 
-      // Les evaluations ne sont creees que si la matiere n'en a pas encore.
-      if (await Evaluation.exists({ matiere: matiere._id })) continue;
-
       for (const [indexEval, modele] of MODELE_EVALUATIONS.entries()) {
+        // Garde-fou pose par EVALUATION, et non par matiere. Un garde-fou pose sur
+        // la matiere entiere rendrait le seed sourd a tout modele ajoute plus tard :
+        // une base deja semee garderait indefiniment son ancienne liste.
+        if (await Evaluation.exists({ matiere: matiere._id, titre: modele.titre })) continue;
+
         const evaluation = await Evaluation.create({
           matiere: matiere._id,
           classe: classe._id,
@@ -97,7 +109,7 @@ export async function seedScolarite() {
           bareme: modele.bareme,
           coefficient: modele.coefficient,
           periode: 'semestre1',
-          publiee: indexEval === 0, // la premiere est publiee, la seconde en cours de correction
+          publiee: modele.publiee,
           creePar: professeur,
         });
         evaluationsCreees += 1;

@@ -283,7 +283,7 @@ export default function GestionNotes() {
             <div className="grid gap-3 sm:grid-cols-4">
               {[
                 ['Effectif', stats.effectif],
-                ['Moyenne de classe', stats.moyenneClasse === null ? '—' : `${stats.moyenneClasse}/20`],
+                ['Moyenne de la classe', stats.moyenneGeneraleClasse === null ? '—' : `${stats.moyenneGeneraleClasse}/20`],
                 ['Admis (≥ 10)', `${stats.admis}/${stats.notes}`],
                 ['Taux de reussite', stats.tauxReussite === null ? '—' : `${stats.tauxReussite} %`],
               ].map(([libelle, valeur]) => (

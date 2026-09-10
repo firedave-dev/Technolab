@@ -57,7 +57,7 @@ export const releveClasse = catchAsync(async (req, res) => {
     statistiques: {
       effectif: etudiants.length,
       notes: moyennes.length,
-      moyenneClasse: moyennes.length
+      moyenneGeneraleClasse: moyennes.length
         ? Math.round((moyennes.reduce((s, m) => s + m, 0) / moyennes.length) * 100) / 100
         : null,
       admis: moyennes.filter((m) => m >= 10).length,

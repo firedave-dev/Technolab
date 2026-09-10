@@ -232,7 +232,7 @@ async function resumeEtudiant(etudiantId) {
       mention: bulletin?.mention ?? null,
       rang: bulletin?.rang ?? null,
       effectif: bulletin?.effectif ?? 0,
-      moyenneClasse: bulletin?.moyenneClasse ?? null,
+      moyenneGeneraleClasse: bulletin?.moyenneGeneraleClasse ?? null,
     },
     absences: {
       total: absences[0]?.total || 0,

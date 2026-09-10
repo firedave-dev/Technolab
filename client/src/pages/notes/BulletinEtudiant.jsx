@@ -26,10 +26,28 @@ import { useMesEnfants } from '../../hooks/useGestion.js';
 import { ROLES } from '../../utils/roles.js';
 import { PERIODES, libellePeriode } from '../../utils/scolarite.js';
 
-/** Types d'evaluation regroupes par colonne du bulletin. */
-const COLONNES_NOTES = [
-  { cle: 'interrogations', titre: 'Interrogations', types: ['interrogation'] },
-  { cle: 'devoirs', titre: 'Devoirs et examens', types: ['devoir', 'examen', 'tp', 'projet'] },
+/**
+ * Les deux groupes d'evaluation du bulletin, chacun suivi de sa moyenne.
+ *
+ * Le decoupage reprend celui du calcul serveur (scolarite.service.js) : le lecteur
+ * doit pouvoir refaire l'operation a la main depuis le document. Afficher les notes
+ * sans la moyenne du groupe, ou l'inverse, rendrait la moyenne finale invérifiable.
+ */
+const GROUPES = [
+  {
+    cle: 'classe',
+    titre: 'Travaux de classe',
+    abrege: 'Moy. classe',
+    types: ['devoir', 'interrogation', 'tp', 'projet'],
+    champ: 'moyenneClasse',
+  },
+  {
+    cle: 'examen',
+    titre: 'Examens',
+    abrege: 'Moy. examen',
+    types: ['examen'],
+    champ: 'moyenneExamen',
+  },
 ];
 
 /** Couleur d'une moyenne : vert au-dessus de la moyenne, ambre puis rouge en dessous. */
@@ -206,11 +224,11 @@ export default function BulletinEtudiant() {
             detail={b.effectif ? `sur ${b.effectif} etudiants` : undefined}
           />
           <Synthese
-            libelle="Moyenne de classe"
-            valeur={b.moyenneClasse === null ? '—' : `${b.moyenneClasse}/20`}
+            libelle="Moyenne de la classe"
+            valeur={b.moyenneGeneraleClasse === null ? '—' : `${b.moyenneGeneraleClasse}/20`}
             detail={
-              b.moyenneGenerale !== null && b.moyenneClasse !== null
-                ? `${b.moyenneGenerale >= b.moyenneClasse ? '+' : ''}${(b.moyenneGenerale - b.moyenneClasse).toFixed(2).replace('.', ',')} pt`
+              b.moyenneGenerale !== null && b.moyenneGeneraleClasse !== null
+                ? `${b.moyenneGenerale >= b.moyenneGeneraleClasse ? '+' : ''}${(b.moyenneGenerale - b.moyenneGeneraleClasse).toFixed(2).replace('.', ',')} pt`
                 : undefined
             }
           />
@@ -224,7 +242,13 @@ export default function BulletinEtudiant() {
         {/* Grille des matieres */}
         {b.matieres.length ? (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] border-collapse text-sm">
+            {/*
+              Largeur minimale calee sur le PAPIER, pas sur l'ecran : un A4 paysage
+              a marges de 8 mm offre 281 mm de laize, soit environ 1062 px. Passer
+              au-dessus ferait rogner la derniere colonne a l'impression, sans que
+              rien ne le signale a l'ecran.
+            */}
+            <table className="w-full min-w-[1040px] border-collapse text-sm">
               <thead>
                 <tr className="border-b border-slate-300 bg-white text-left">
                   <th scope="col" className="px-8 py-3 text-[10px] font-bold uppercase tracking-wide text-slate-500">
@@ -233,16 +257,23 @@ export default function BulletinEtudiant() {
                   <th scope="col" className="px-3 py-3 text-center text-[10px] font-bold uppercase tracking-wide text-slate-500">
                     Coef.
                   </th>
-                  {COLONNES_NOTES.map((colonne) => (
+                  {GROUPES.map((groupe) => [
                     <th
-                      key={colonne.cle}
+                      key={groupe.cle}
                       scope="col"
                       className="px-3 py-3 text-[10px] font-bold uppercase tracking-wide text-slate-500"
                     >
-                      {colonne.titre}
-                    </th>
-                  ))}
-                  <th scope="col" className="px-3 py-3 text-center text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                      {groupe.titre}
+                    </th>,
+                    <th
+                      key={`${groupe.cle}-moyenne`}
+                      scope="col"
+                      className="border-l border-slate-200 px-3 py-3 text-center text-[10px] font-bold uppercase tracking-wide text-slate-500"
+                    >
+                      {groupe.abrege}
+                    </th>,
+                  ])}
+                  <th scope="col" className="border-l border-slate-300 px-3 py-3 text-center text-[10px] font-bold uppercase tracking-wide text-marine">
                     Moyenne
                   </th>
                   <th scope="col" className="px-8 py-3 text-[10px] font-bold uppercase tracking-wide text-slate-500">
@@ -275,13 +306,14 @@ export default function BulletinEtudiant() {
                         {ligne.matiere.coefficient}
                       </td>
 
-                      {COLONNES_NOTES.map((colonne) => {
+                      {GROUPES.map((groupe) => {
                         const notes = ligne.evaluations.filter((e) =>
-                          colonne.types.includes(e.evaluation.type)
+                          groupe.types.includes(e.evaluation.type)
                         );
+                        const moyenneGroupe = ligne[groupe.champ];
 
-                        return (
-                          <td key={colonne.cle} className="px-3 py-3 align-top">
+                        return [
+                          <td key={groupe.cle} className="px-3 py-3 align-top">
                             {notes.length ? (
                               <ul className="flex flex-wrap gap-1.5">
                                 {notes.map((note) => {
@@ -306,11 +338,24 @@ export default function BulletinEtudiant() {
                             ) : (
                               <span className="text-xs text-slate-300">—</span>
                             )}
-                          </td>
-                        );
+                          </td>,
+
+                          /* Moyenne du groupe : composante, donc plus discrete que
+                             la moyenne de matiere qui en decoule. */
+                          <td
+                            key={`${groupe.cle}-moyenne`}
+                            className="border-l border-slate-200 px-3 py-3 text-center align-top"
+                          >
+                            <span className="text-sm font-medium tabular-nums text-slate-600">
+                              {moyenneGroupe === null || moyenneGroupe === undefined
+                                ? '—'
+                                : moyenneGroupe.toFixed(2).replace('.', ',')}
+                            </span>
+                          </td>,
+                        ];
                       })}
 
-                      <td className={`px-3 py-3 text-center align-top ${fondMoyenne(ligne.moyenne)}`}>
+                      <td className={`border-l border-slate-300 px-3 py-3 text-center align-top ${fondMoyenne(ligne.moyenne)}`}>
                         <span className={`text-base font-bold tabular-nums ${tonMoyenne(ligne.moyenne)}`}>
                           {ligne.moyenne === null ? '—' : ligne.moyenne.toFixed(2).replace('.', ',')}
                         </span>
@@ -333,10 +378,10 @@ export default function BulletinEtudiant() {
                   <td className="px-3 py-3 text-center tabular-nums text-slate-600">
                     {b.matieres.reduce((s, m) => s + m.matiere.coefficient, 0)}
                   </td>
-                  <td colSpan={COLONNES_NOTES.length} className="px-3 py-3 text-xs text-slate-500">
+                  <td colSpan={GROUPES.length * 2} className="px-3 py-3 text-xs text-slate-500">
                     Mention : {b.mention || '—'}
                   </td>
-                  <td className="px-3 py-3 text-center">
+                  <td className="border-l border-slate-300 px-3 py-3 text-center">
                     <span className={`text-lg font-bold tabular-nums ${tonMoyenne(b.moyenneGenerale)}`}>
                       {b.moyenneGenerale === null ? '—' : b.moyenneGenerale.toFixed(2).replace('.', ',')}
                     </span>
@@ -358,7 +403,12 @@ export default function BulletinEtudiant() {
         <footer className="border-t border-slate-200 bg-slate-50 px-8 py-5">
           <div className="flex flex-wrap items-end justify-between gap-8">
             <p className="max-w-md text-[10px] leading-relaxed text-slate-500">
-              Document genere electroniquement par la plateforme de gestion Technolab ISTA
+              <strong className="font-bold text-slate-600">
+                Moyenne d une matiere = (moyenne d examen x 2 + moyenne de classe) / 3.
+              </strong>{' '}
+              La moyenne de classe agrege devoirs, interrogations, TP et projets. Lorsqu un
+              seul des deux groupes est renseigne, la moyenne de la matiere est celle de ce
+              groupe. Document genere electroniquement par la plateforme Technolab ISTA
               le {editeLe}. Les notes portees sont celles publiees a cette date ; toute
               correction ulterieure donnera lieu a une nouvelle edition.
             </p>

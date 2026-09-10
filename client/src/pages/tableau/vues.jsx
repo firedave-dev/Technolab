@@ -259,9 +259,9 @@ export function ResumeEtudiant({ resume, avecEnTete = false }) {
             libelle: 'Rang',
             valeur: scolarite.rang ? `${scolarite.rang} / ${scolarite.effectif}` : '—',
             detail:
-              scolarite.moyenneClasse === null
+              scolarite.moyenneGeneraleClasse === null
                 ? undefined
-                : `moyenne de classe ${scolarite.moyenneClasse}/20`,
+                : `moyenne de la classe ${scolarite.moyenneGeneraleClasse}/20`,
             icone: Trophy,
           },
           {
