@@ -9,7 +9,7 @@ async function demarrer() {
     const app = createApp();
 
     const server = app.listen(env.port, () => {
-      console.log(`[server] Technolab ISTA API sur http://localhost:${env.port} (${env.nodeEnv})`);
+      console.log(`[server] Technolab ISTA API sur https://lab.my-istime.xyz (${env.nodeEnv})`);
     });
 
     // Arret propre
