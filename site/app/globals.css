@@ -1,0 +1,235 @@
+/* =============================================================================
+   Design system du site vitrine Technolab ISTA.
+
+   La charte ne change pas : les couleurs sont reprises telles quelles de
+   l'application de gestion (client/src/index.css). Ce qui change ici, c'est
+   l'echelle — typographie d'affiche, respirations verticales longues — parce
+   qu'une vitrine et un tableau de bord n'ont pas le meme travail a faire.
+
+   Tailwind v4 : aucun fichier de configuration JavaScript. Les jetons declares
+   dans @theme deviennent directement des classes utilitaires (--color-marine
+   donne bg-marine et text-marine, --text-affiche donne text-affiche, etc.).
+   ========================================================================== */
+
+@import 'tailwindcss';
+
+/* -----------------------------------------------------------------------------
+   Archivo, police variable auto-hebergee.
+
+   Un seul fichier couvre les graisses 400 a 700 : Regular, Medium et Bold sont
+   donc servis par la meme requete, la ou trois graisses statiques en auraient
+   demande trois. Les deux decoupages (latin, latin-ext) laissent le navigateur
+   ne telecharger que le jeu de caracteres dont la page a besoin.
+   -------------------------------------------------------------------------- */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('/polices/archivo-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('/polices/archivo-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+    U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
+    U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@theme {
+  /* ---------------------------------------------------------------------------
+     Couleurs de charte.
+
+     Le role de chaque teinte est contraignant, pas indicatif :
+     - MARINE porte l'autorite — titres, fonds de sections institutionnelles ;
+     - ISTA est reserve aux ACTIONS. Un aplat bleu qui ne se clique pas apprend
+       au visiteur a ignorer les boutons ;
+     - CLAIR ne va QUE sur fond marine. Sur blanc il tombe a 2,2:1, sous le seuil
+       d'accessibilite — c'est pourquoi il porte le suffixe « sur-fonce » ;
+     - NEUTRE est le seul gris de texte secondaire, a 5,74:1 sur blanc.
+     ------------------------------------------------------------------------ */
+  --color-marine: #0b2e52;
+  --color-ista: #1f6fe0;
+  --color-clair-sur-fonce: #7fb6f7;
+  --color-neutre: #6b7280;
+
+  --color-brand-50: #eef5fe;
+  --color-brand-100: #d9e9fd;
+  --color-brand-200: #bcd9fb;
+  --color-brand-700: #1a5bc0;
+  --color-brand-900: #14406d;
+
+  /* Gris de structure : filets, fonds tres legers. */
+  --color-filet: #e8eaed;
+  --color-fond-doux: #f7f8fa;
+
+  /* ---------------------------------------------------------------------------
+     Typographie.
+
+     Les tailles sont fluides plutot que definies par paliers : entre 360 px et
+     1920 px de large, un titre d'affiche doit passer de « lisible sur telephone »
+     a « monumental sur grand ecran » sans marche d'escalier. La borne basse
+     (56 px) est ce que supporte l'accroche la plus longue du site sur un
+     portable 13 pouces sans deborder.
+     ------------------------------------------------------------------------ */
+  --font-archivo: 'Archivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --text-affiche: clamp(3.5rem, 8vw, 7.5rem);
+  --text-affiche--line-height: 0.96;
+  --text-affiche--letter-spacing: -0.015em;
+  --text-affiche--font-weight: 700;
+
+  --text-titre: clamp(2.25rem, 4.5vw, 4rem);
+  --text-titre--line-height: 1.05;
+  --text-titre--letter-spacing: -0.015em;
+  --text-titre--font-weight: 700;
+
+  --text-sous-titre: clamp(1.5rem, 2.2vw, 2rem);
+  --text-sous-titre--line-height: 1.2;
+  --text-sous-titre--letter-spacing: -0.01em;
+
+  --text-chapeau: clamp(1.125rem, 1.6vw, 1.5rem);
+  --text-chapeau--line-height: 1.5;
+
+  --text-corps: 1.125rem;
+  --text-corps--line-height: 1.65;
+
+  --tracking-titre: -0.015em;
+  --tracking-baseline: 0.28em;
+
+  /* ---------------------------------------------------------------------------
+     Rythme vertical.
+
+     Le vide est un element de composition, pas un reste. Une section respire de
+     80 px sur telephone a 200 px sur grand ecran ; c'est cette respiration qui
+     distingue une page institutionnelle d'une page de catalogue.
+     ------------------------------------------------------------------------ */
+  --spacing-section: clamp(5rem, 11vw, 12.5rem);
+  --spacing-bloc: clamp(2.5rem, 5vw, 5rem);
+
+  /*
+   * Rapport texte / scene 3D du hero, declare ici pour se regler en un seul
+   * endroit. A revoir une fois l'ordinateur en place : tant que la colonne de
+   * droite est vide, on juge d'un vide, pas d'une composition.
+   */
+  --proportion-hero: 1.15fr 1fr;
+
+  /* Largeur de lecture : au-dela, l'oeil perd la ligne suivante. */
+  --container-lecture: 44rem;
+  --container-page: 80rem;
+
+  /* ---------------------------------------------------------------------------
+     Mouvement.
+
+     Une seule courbe pour tout le site. Elle demarre vite et finit lentement,
+     ce qui donne au mouvement l'air d'obeir a une inertie plutot qu'a une
+     minuterie.
+     ------------------------------------------------------------------------ */
+  --ease-douce: cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-reveal: 700ms;
+}
+
+@layer base {
+  html {
+    /*
+     * Le defilement doux est pris en charge par Lenis, en JavaScript. Le laisser
+     * aussi en CSS ferait cohabiter deux moteurs de defilement qui se disputent
+     * la position de la page.
+     */
+    scroll-behavior: auto;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    font-family: var(--font-archivo);
+    font-size: var(--text-corps);
+    line-height: 1.65;
+    color: var(--color-marine);
+    background: #fff;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  @media (min-width: 64rem) {
+    body {
+      font-size: 1.25rem;
+    }
+  }
+
+  /*
+   * Anneau de focus visible partout. Il n'est pas supprime au clic a la souris :
+   * une personne qui navigue au clavier doit voir ou elle se trouve, et une
+   * regle « :focus-visible » suffit a ne pas l'imposer au pointeur.
+   */
+  :focus-visible {
+    outline: 2px solid var(--color-ista);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+
+  ::selection {
+    background: var(--color-brand-100);
+    color: var(--color-marine);
+  }
+}
+
+@layer components {
+  /* Libelle en capitales espacees — « UNIVERSITE PRIVEE », « NOS CYCLES ». */
+  .baseline {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: var(--tracking-baseline);
+    text-transform: uppercase;
+  }
+
+  /*
+   * Lien d'evitement : premier element focusable de la page, invisible tant
+   * qu'il n'a pas le focus. Il epargne a une personne au clavier de traverser
+   * toute la navigation a chaque page.
+   */
+  .lien-evitement {
+    position: fixed;
+    top: 0.75rem;
+    left: 0.75rem;
+    z-index: 100;
+    transform: translateY(-200%);
+    border-radius: 0.5rem;
+    background: var(--color-marine);
+    padding: 0.75rem 1.25rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #fff;
+    transition: transform 200ms var(--ease-douce);
+  }
+
+  .lien-evitement:focus {
+    transform: translateY(0);
+  }
+}
+
+/* -----------------------------------------------------------------------------
+   Mouvement reduit.
+
+   Cette preference est un reglage d'accessibilite, pas un gout : elle est
+   activee notamment par les personnes sujettes au mal des transports vestibulaire,
+   pour qui un defilement pilote ou un objet qui flotte provoque un vrai malaise.
+   On neutralise donc le mouvement globalement, ici, plutot que composant par
+   composant — un seul endroit a verifier.
+   -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

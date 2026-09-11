@@ -1,0 +1,16 @@
+# Sorties de build
+.next/
+out/
+
+# Dependances
+node_modules/
+
+# Captures de verification : regenerables par `npm run capture`
+rendus/
+
+# Journaux du serveur local
+serveur.log
+serveur.err.log
+
+# Fichiers de travail (captures intermediaires, atlas extrait)
+travail/
