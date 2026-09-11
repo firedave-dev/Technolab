@@ -6,8 +6,26 @@
  */
 import axios from 'axios';
 
+/**
+ * Adresse de base de l'API.
+ *
+ * Toutes les routes du serveur sont montees sous /api. Ce suffixe est ajoute
+ * ici plutot qu'exige dans VITE_API_URL, parce que les deux erreurs symetriques
+ * coutent cher et ne se voient pas : une variable saisie sans /api renvoyait
+ * 404 sur toutes les requetes — connexion comprise — alors que l'API repondait
+ * parfaitement ; une variable saisie avec, doublee par le code, donnait
+ * /api/api. Les deux ecritures sont desormais equivalentes.
+ *
+ * Valeur vide (le defaut en developpement) : l'appel reste relatif, et le proxy
+ * declare dans vite.config.js le redirige vers le serveur local.
+ */
+function baseApi() {
+  const origine = (import.meta.env.VITE_API_URL || '').trim().replace(/\/+$/, '');
+  return /\/api$/.test(origine) ? origine : `${origine}/api`;
+}
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'https://api.lab.my-istime.xyz',
+  baseURL: baseApi(),
   withCredentials: true, // envoie le cookie de refresh
 });
 
