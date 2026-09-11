@@ -2,6 +2,17 @@
 // Chemin du dossier src/, resolu depuis l'emplacement de ce fichier.
 const SRC = new URL('../src/', import.meta.url).href;
 const { connectDB } = await import(SRC + 'config/db.js');
+
+/**
+ * Compte administrateur de reference, lu depuis la configuration.
+ *
+ * Cette adresse est reglable par SEED_ADMIN_EMAIL : la coder en dur ici faisait
+ * echouer toute la suite des qu'un deploiement changeait l'adresse de l'admin,
+ * alors que le code teste etait intact. On lit donc la meme source que le seed.
+ */
+const { env } = await import(SRC + 'config/env.js');
+const ADMIN_EMAIL = env.seed.adminEmail;
+const ADMIN_MDP = env.seed.adminPassword;
 const { createApp } = await import(SRC + 'app.js');
 
 const BASE = 'http://localhost:5095/api';
@@ -37,7 +48,7 @@ await connectDB();
 const server = createApp().listen(5095);
 
 try {
-  const admin = await connecter('admin@technolab-ista.edu', 'Admin@1234');
+  const admin = await connecter(ADMIN_EMAIL, 'Admin@1234');
   const directeur = await connecter('directeur@technolab-ista.edu');
   const secretaire = await connecter('secretaire@technolab-ista.edu');
   const professeur = await connecter('professeur@technolab-ista.edu');
@@ -272,7 +283,7 @@ try {
 } finally {
   // Nettoyage : paiements, echeances puis frais crees par le test
   try {
-    const admin = await connecter('admin@technolab-ista.edu', 'Admin@1234');
+    const admin = await connecter(ADMIN_EMAIL, 'Admin@1234');
     const { Paiement } = await import(SRC + 'models/Paiement.js');
     const { Echeance } = await import(SRC + 'models/Echeance.js');
     const { FraisScolarite } = await import(SRC + 'models/FraisScolarite.js');

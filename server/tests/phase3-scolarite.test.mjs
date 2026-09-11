@@ -2,6 +2,17 @@
 // Chemin du dossier src/, resolu depuis l'emplacement de ce fichier.
 const SRC = new URL('../src/', import.meta.url).href;
 const { connectDB } = await import(SRC + 'config/db.js');
+
+/**
+ * Compte administrateur de reference, lu depuis la configuration.
+ *
+ * Cette adresse est reglable par SEED_ADMIN_EMAIL : la coder en dur ici faisait
+ * echouer toute la suite des qu'un deploiement changeait l'adresse de l'admin,
+ * alors que le code teste etait intact. On lit donc la meme source que le seed.
+ */
+const { env } = await import(SRC + 'config/env.js');
+const ADMIN_EMAIL = env.seed.adminEmail;
+const ADMIN_MDP = env.seed.adminPassword;
 const { createApp } = await import(SRC + 'app.js');
 
 const BASE = 'http://localhost:5096/api';
@@ -37,7 +48,7 @@ const server = createApp().listen(5096);
 const aNettoyer = { evaluations: [], examens: [], matieres: [], absences: [] };
 
 try {
-  const admin = await connecter('admin@technolab-ista.edu', 'Admin@1234');
+  const admin = await connecter(ADMIN_EMAIL, 'Admin@1234');
   const secretaire = await connecter('secretaire@technolab-ista.edu');
   const prof = await connecter('professeur@technolab-ista.edu');
   const prof2 = await connecter('m.keita@technolab-ista.edu');
@@ -458,7 +469,7 @@ try {
 } finally {
   // Nettoyage des donnees creees par le test
   try {
-    const admin = await connecter('admin@technolab-ista.edu', 'Admin@1234');
+    const admin = await connecter(ADMIN_EMAIL, 'Admin@1234');
     for (const id of aNettoyer.absences) await appel(`/absences/${id}`, { method: 'DELETE', token: admin });
     for (const id of aNettoyer.examens) await appel(`/examens/${id}`, { method: 'DELETE', token: admin });
     for (const id of aNettoyer.evaluations) await appel(`/evaluations/${id}`, { method: 'DELETE', token: admin });

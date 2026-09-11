@@ -3,6 +3,17 @@
 const SRC = new URL('../src/', import.meta.url).href;
 const { connectDB } = await import(SRC + 'config/db.js');
 
+/**
+ * Compte administrateur de reference, lu depuis la configuration.
+ *
+ * Cette adresse est reglable par SEED_ADMIN_EMAIL : la coder en dur ici faisait
+ * echouer toute la suite des qu'un deploiement changeait l'adresse de l'admin,
+ * alors que le code teste etait intact. On lit donc la meme source que le seed.
+ */
+const { env } = await import(SRC + 'config/env.js');
+const ADMIN_EMAIL = env.seed.adminEmail;
+const ADMIN_MDP = env.seed.adminPassword;
+
 const BASE = 'http://localhost:5099/api';
 let cookie = null;
 const ok = [];
@@ -37,11 +48,11 @@ const server = createApp().listen(5099);
 
 try {
   // 1. Mauvais mot de passe
-  let r = await appel('/auth/login', { method: 'POST', body: { email: 'admin@technolab-ista.edu', motDePasse: 'FauxMdp1' } });
+  let r = await appel('/auth/login', { method: 'POST', body: { email: ADMIN_EMAIL, motDePasse: 'FauxMdp1' } });
   verifier('login mot de passe errone rejete', r.status === 401, r.data?.message);
 
   // 2. Connexion admin
-  r = await appel('/auth/login', { method: 'POST', body: { email: 'admin@technolab-ista.edu', motDePasse: 'Admin@1234' } });
+  r = await appel('/auth/login', { method: 'POST', body: { email: ADMIN_EMAIL, motDePasse: ADMIN_MDP } });
   verifier('login admin', r.status === 200 && !!r.data.accessToken, r.data?.utilisateur?.roleLabel);
   verifier('cookie refresh httpOnly pose', /refreshToken=/.test(cookie || ''));
   verifier('mot de passe absent de la reponse', r.data?.utilisateur?.motDePasse === undefined);
@@ -116,7 +127,7 @@ try {
   try {
     const admin = await appel('/auth/login', {
       method: 'POST',
-      body: { email: 'admin@technolab-ista.edu', motDePasse: 'Admin@1234' },
+      body: { email: ADMIN_EMAIL, motDePasse: ADMIN_MDP },
     });
     const liste = await appel('/users?q=etudiant@technolab-ista.edu', { token: admin.data.accessToken });
     const cible = liste.data?.utilisateurs?.[0];

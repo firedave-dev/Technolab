@@ -15,6 +15,17 @@ const SRC = new URL('../src/', import.meta.url).href;
 // fileURLToPath gere correctement les chemins Windows (lettre de lecteur, separateurs).
 const RACINE = fileURLToPath(new URL('..', import.meta.url));
 const { connectDB } = await import(SRC + 'config/db.js');
+
+/**
+ * Compte administrateur de reference, lu depuis la configuration.
+ *
+ * Cette adresse est reglable par SEED_ADMIN_EMAIL : la coder en dur ici faisait
+ * echouer toute la suite des qu'un deploiement changeait l'adresse de l'admin,
+ * alors que le code teste etait intact. On lit donc la meme source que le seed.
+ */
+const { env } = await import(SRC + 'config/env.js');
+const ADMIN_EMAIL = env.seed.adminEmail;
+const ADMIN_MDP = env.seed.adminPassword;
 const { createApp } = await import(SRC + 'app.js');
 
 const BASE = 'http://localhost:5092/api';
@@ -249,7 +260,7 @@ try {
     r.status === 200 && Boolean(r.data.resetToken));
 
   // ======================== RECU PDF A LA CHARTE ========================
-  const admin = await connecter('admin@technolab-ista.edu', 'Admin@1234');
+  const admin = await connecter(ADMIN_EMAIL, 'Admin@1234');
   const paiements = (await appel('/paiements?statut=valide&limite=1', { token: admin })).data.paiements;
 
   if (paiements?.length) {

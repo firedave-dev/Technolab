@@ -59,16 +59,56 @@ export async function revoquerToutesSessions(userId) {
   await RefreshToken.deleteMany({ user: userId });
 }
 
-export function poserCookieRefresh(res, token, expiresAt) {
-  res.cookie(REFRESH_COOKIE, token, {
+/**
+ * La requete vient-elle d'un autre site que celui qui repond ?
+ *
+ * Le client et l'API peuvent etre servis par deux domaines distincts — front sur
+ * Vercel, API sur Railway. Le navigateur considere alors chaque appel comme
+ * « cross-site », et le regime du cookie doit s'y adapter.
+ *
+ * Absence d'en-tete Origin : requete de meme origine, ou appel hors navigateur
+ * (curl, test). On reste dans le cas restrictif, qui est le bon par defaut.
+ */
+function requeteCroiseLesSites(req) {
+  const origine = req?.get?.('origin');
+  if (!origine) return false;
+  try {
+    return new URL(origine).host !== req.get('host');
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Attributs du cookie de refresh.
+ *
+ * Poser et effacer un cookie exigent EXACTEMENT les memes attributs : un
+ * `clearCookie` qui n'en reprend pas le `sameSite` ou le `secure` ne supprime
+ * rien, et la deconnexion laisse le jeton en place. Les deux operations lisent
+ * donc cette fonction unique plutot que deux listes a maintenir en parallele.
+ *
+ * Le choix de `sameSite` :
+ * - `strict` protege le mieux, mais interdit au navigateur de renvoyer le cookie
+ *   depuis un autre domaine — la session serait perdue a chaque rechargement sur
+ *   un deploiement front/API separe ;
+ * - `none` retablit cet envoi, au prix obligatoire du drapeau `secure`, donc de
+ *   HTTPS. On ne l'active que la ou les deux conditions sont reunies.
+ */
+function optionsCookieRefresh(req) {
+  const croiseLesSites = env.isProd && requeteCroiseLesSites(req);
+
+  return {
     httpOnly: true,
     secure: env.isProd,
-    sameSite: env.isProd ? 'strict' : 'lax',
-    expires: expiresAt,
+    sameSite: croiseLesSites ? 'none' : env.isProd ? 'strict' : 'lax',
     path: '/api/auth',
-  });
+  };
+}
+
+export function poserCookieRefresh(res, token, expiresAt) {
+  res.cookie(REFRESH_COOKIE, token, { ...optionsCookieRefresh(res.req), expires: expiresAt });
 }
 
 export function effacerCookieRefresh(res) {
-  res.clearCookie(REFRESH_COOKIE, { path: '/api/auth' });
+  res.clearCookie(REFRESH_COOKIE, optionsCookieRefresh(res.req));
 }

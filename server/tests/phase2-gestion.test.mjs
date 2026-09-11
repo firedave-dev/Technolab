@@ -2,6 +2,17 @@
 // Chemin du dossier src/, resolu depuis l'emplacement de ce fichier.
 const SRC = new URL('../src/', import.meta.url).href;
 const { connectDB } = await import(SRC + 'config/db.js');
+
+/**
+ * Compte administrateur de reference, lu depuis la configuration.
+ *
+ * Cette adresse est reglable par SEED_ADMIN_EMAIL : la coder en dur ici faisait
+ * echouer toute la suite des qu'un deploiement changeait l'adresse de l'admin,
+ * alors que le code teste etait intact. On lit donc la meme source que le seed.
+ */
+const { env } = await import(SRC + 'config/env.js');
+const ADMIN_EMAIL = env.seed.adminEmail;
+const ADMIN_MDP = env.seed.adminPassword;
 const { createApp } = await import(SRC + 'app.js');
 
 const BASE = 'http://localhost:5098/api';
@@ -32,7 +43,7 @@ await connectDB();
 const server = createApp().listen(5098);
 
 try {
-  const admin = await connecter('admin@technolab-ista.edu', 'Admin@1234');
+  const admin = await connecter(ADMIN_EMAIL, 'Admin@1234');
   const secretaire = await connecter('secretaire@technolab-ista.edu');
   const professeur = await connecter('professeur@technolab-ista.edu');
   const parent = await connecter('parent@technolab-ista.edu');
@@ -41,8 +52,17 @@ try {
 
   // --- Liste et filtres ---
   let r = await appel('/users?limite=5', { token: admin });
-  verifier('GET /users pagine', r.status === 200 && r.data.utilisateurs.length === 5 && r.data.pagination.total >= 18,
-    `total ${r.data?.pagination?.total}`);
+  // On verifie la COHERENCE de la pagination, pas un effectif absolu : un seuil
+  // en dur (« au moins 18 comptes ») ne passait que grace aux comptes laisses par
+  // les executions precedentes, et tombait des que la base etait resemee proprement.
+  const pg = r.data?.pagination;
+  verifier('GET /users pagine',
+    r.status === 200
+    && r.data.utilisateurs.length === 5
+    && pg.limite === 5
+    && pg.total >= r.data.utilisateurs.length
+    && pg.pages === Math.ceil(pg.total / 5),
+    `total ${pg?.total}, ${pg?.pages} page(s)`);
 
   r = await appel('/users?role=professeur', { token: admin });
   verifier('filtre par role', r.status === 200 && r.data.utilisateurs.every((u) => u.role === 'professeur'),
@@ -195,7 +215,7 @@ try {
 
   // --- Email deja utilise ---
   r = await appel(`/users/${nouvelEtudiant.id}`, {
-    method: 'PATCH', token: admin, body: { email: 'admin@technolab-ista.edu' },
+    method: 'PATCH', token: admin, body: { email: ADMIN_EMAIL },
   });
   verifier('email deja pris refuse', r.status === 409, r.data?.message);
 
