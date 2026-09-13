@@ -12,7 +12,7 @@
  */
 import { Link } from 'react-router-dom';
 import { ArrowRight, GraduationCap } from 'lucide-react';
-import Seo, { schemaFormations } from '../../components/Seo.jsx';
+import Seo, { schemaFormations, assembler, schemaFilAriane } from '../../components/Seo.jsx';
 import Photo from '../../components/Photo.jsx';
 import { CYCLES, NOMBRE_PARCOURS, POLES, nomPole } from '../../utils/formations.js';
 
@@ -27,7 +27,10 @@ export default function Formations() {
           + 'finance, informatique, réseaux et data, génie électrique, génie civil, mines '
           + 'et technologies agro-alimentaires.'
         }
-        schema={schemaFormations(CYCLES, POLES)}
+        schema={assembler(
+          schemaFormations(CYCLES, POLES),
+          schemaFilAriane([{ nom: 'Formations', chemin: '/formations' }]),
+        )}
       />
 
       <section className="border-b border-slate-200 bg-brand-50/40">
@@ -136,7 +139,7 @@ export default function Formations() {
             </div>
           </div>
 
-          <Photo nom="delegation-etudiants" className="h-full w-full object-cover" />
+          <Photo nom="seance-travail" className="h-full w-full object-cover" />
         </section>
       </div>
     </>

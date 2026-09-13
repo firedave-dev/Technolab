@@ -25,11 +25,41 @@ import Admissions from './pages/public/Admissions.jsx';
 import './index.css';
 
 /** Routes pre-rendues, et leur fichier de destination dans dist/. */
+/**
+ * Routes pre-rendues, et leur fichier de destination dans dist/.
+ *
+ * `images` alimente le plan de site : Google indexe les photographies a part,
+ * et une image declaree avec son titre remonte sur une recherche visuelle
+ * (« remise de diplomes TechnoLAB »). Sans declaration, une image chargee en
+ * differe — ce qui est le cas de presque toutes les notres — peut n'etre jamais
+ * decouverte.
+ */
 export const ROUTES_PUBLIQUES = [
-  { chemin: '/', fichier: 'index.html' },
-  { chemin: '/formations', fichier: 'formations/index.html' },
-  { chemin: '/admissions', fichier: 'admissions/index.html' },
-  { chemin: '/a-propos', fichier: 'a-propos/index.html' },
+  {
+    chemin: '/',
+    fichier: 'index.html',
+    images: [
+      { fichier: 'remise-diplomes.webp', titre: 'Cérémonie de remise des diplômes' },
+      { fichier: 'diplomes-groupe.webp', titre: 'Diplômées devant le mur des partenaires' },
+      { fichier: 'salle-de-classe.webp', titre: 'Étudiants en cours' },
+      { fichier: 'dakar-plage.webp', titre: 'Séjour d’études à Dakar' },
+    ],
+  },
+  {
+    chemin: '/formations',
+    fichier: 'formations/index.html',
+    images: [{ fichier: 'seance-travail.webp', titre: 'Séance de travail entre étudiants' }],
+  },
+  {
+    chemin: '/admissions',
+    fichier: 'admissions/index.html',
+    images: [{ fichier: 'etudiants-groupe.webp', titre: 'Étudiants de TechnoLAB-ISTA' }],
+  },
+  {
+    chemin: '/a-propos',
+    fichier: 'a-propos/index.html',
+    images: [{ fichier: 'assemblee-generale.webp', titre: 'Assemblée générale de l’institut' }],
+  },
 ];
 
 /** Rend une route publique en HTML statique. */

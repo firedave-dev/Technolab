@@ -89,7 +89,7 @@ export default function DossierEtudiant() {
             <BadgeStatut statut={etudiant.actif ? 'actif' : 'inactif'} />
             {etudiant.matricule && (
               <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs text-slate-600">
-                {etudiant.matricule}
+                Matricule : <span className="font-mono">{etudiant.matricule}</span>
               </span>
             )}
           </div>

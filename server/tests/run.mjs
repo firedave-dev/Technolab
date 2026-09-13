@@ -1,5 +1,5 @@
 /**
- * Lance les trois suites de bout en bout a la suite.
+ * Lance les suites de tests a la suite.
  * Prerequis : MongoDB accessible et `npm run seed` execute au moins une fois.
  * Usage : npm test (depuis server/, ou npm run test a la racine)
  */
@@ -16,6 +16,8 @@ const SUITES = [
   ['Phase 4 — Comptabilite, paiements et recus', 'phase4-comptabilite.test.mjs'],
   ['Phase 5 — Planning et statistiques', 'phase5-planning.test.mjs'],
   ['Phase 6 — Charte, emails et documents', 'phase6-charte.test.mjs'],
+  ['Phase 7 — Notation, UE et credits ECTS', 'phase7-notation.test.mjs'],
+  ['Phase 8 — Credits, types et appariement en UE', 'phase8-appariement.test.mjs'],
 ];
 
 /** Execute une suite et renvoie son code de sortie. */

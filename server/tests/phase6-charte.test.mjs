@@ -67,16 +67,23 @@ const contraste = (a, b) => {
   return (l1 + 0.05) / (l2 + 0.05);
 };
 
-const MARINE = '#0B2E52';
-const ISTA = '#1F6FE0';
-const CLAIR = '#7FB6F7';
+const MARINE = '#2E4474';
+const ISTA = '#038129';
+const CLAIR = '#C4CDDC';
 const BLANC = '#FFFFFF';
 
 /** Dimensions d'un PNG, lues dans l'en-tete IHDR. */
 function dimensionsPNG(chemin) {
   const b = fs.readFileSync(chemin);
   const signature = b.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
-  return { signature, largeur: b.readUInt32BE(16), hauteur: b.readUInt32BE(20), taille: b.length };
+  return {
+    signature,
+    largeur: b.readUInt32BE(16),
+    hauteur: b.readUInt32BE(20),
+    // Octet 25 de l'en-tete IHDR : 6 = RVB + alpha, 2 = RVB sans transparence.
+    typeCouleur: b.readUInt8(25),
+    taille: b.length,
+  };
 }
 
 await connectDB();
@@ -108,7 +115,7 @@ try {
     `${cClairSurBlanc.toFixed(2)}:1`);
 
   // ==================== RAMPE ORDINALE DES GRAPHIQUES ====================
-  const rampe = ['#4a8ce8', '#1f6fe0', '#1a5cbc', '#164a97', '#0b2e52'];
+  const rampe = ['#2b954b', '#038129', '#026a22', '#025f1e', '#01521a'];
   const luminances = rampe.map(luminance);
   verifier('rampe des graphiques monotone du clair au fonce',
     luminances.every((l, i) => i === 0 || l < luminances[i - 1]));
@@ -119,55 +126,55 @@ try {
 
   // ======================== FICHIERS DE MARQUE ========================
   const marque = path.join(RACINE, 'src', 'marque');
-  const logoMarine = dimensionsPNG(path.join(marque, 'logo-horizontal-marine.png'));
-  verifier('logo marine present et valide cote serveur',
-    logoMarine.signature && logoMarine.largeur > 0, `${logoMarine.largeur}x${logoMarine.hauteur}`);
-
-  // Le lockup doit rester au-dessus de 28 mm (~106 px a 96 dpi) une fois pose a 200 px.
-  const largeurLockup = 200 * (941 / 1065);
-  verifier('logo a 200 px : lockup au-dessus du plancher de 28 mm', largeurLockup >= 106,
-    `${Math.round(largeurLockup)} px de lockup`);
-
-  // --- SVG servis au navigateur ---
   const marqueClient = path.join(RACINE, '..', 'client', 'public', 'marque');
 
-  const SVG_ATTENDUS = [
-    'logo-horizontal.svg', 'logo-horizontal-marine.svg',
-    'logo-vertical.svg', 'logo-vertical-inverse.svg', 'icone-marine.svg',
-  ];
-
-  for (const nom of SVG_ATTENDUS) {
-    const chemin = path.join(marqueClient, nom);
-    if (!fs.existsSync(chemin)) {
-      verifier(`${nom} present`, false, 'fichier absent');
-      continue;
-    }
-
-    const svg = fs.readFileSync(chemin, 'utf8');
-    const viewBox = (svg.match(/viewBox="([^"]+)"/) || [])[1];
-
-    // Sans viewBox, un SVG ne se redimensionne pas en CSS : c'est le defaut des exports.
-    verifier(`${nom} : viewBox present et bien forme`,
-      Boolean(viewBox) && viewBox.split(/\s+/).length === 4, viewBox || 'absent');
-
-    // Les cadres gris de l'export ne doivent plus figurer dans le fichier livre.
-    verifier(`${nom} : cadre parasite retire`,
-      !/fill="#[dD]6[dD]3[dD]1"/.test(svg) && !/fill="#[eE]4[eE]1[dD][fF]"/.test(svg));
+  // Le serveur genere les PDF et les emails : il lui faut sa propre copie.
+  for (const nom of ['blason.png', 'blason-sur-marine.png']) {
+    const info = dimensionsPNG(path.join(marque, nom));
+    verifier(`${nom} present et valide cote serveur`,
+      info.signature && info.largeur > 0, `${info.largeur}x${info.hauteur}`);
   }
 
-  // L'icone servie en favicon doit etre carree, sinon elle est deformee par le navigateur.
-  const iconeSvg = fs.readFileSync(path.join(marqueClient, 'icone-marine.svg'), 'utf8');
-  const [, , largeurVue, hauteurVue] = (iconeSvg.match(/viewBox="([^"]+)"/) || ['', ''])[1]
-    .split(/\s+/).map(Number);
-  verifier('icone : viewBox carre', Math.abs(largeurVue - hauteurVue) < 0.5,
-    `${largeurVue} x ${hauteurVue}`);
+  /*
+   * Le detourage doit avoir produit de la VRAIE transparence.
+   *
+   * Le fichier d'origine porte un canal alpha qui vaut 255 partout : un simple
+   * controle « le PNG a-t-il un canal alpha » serait donc passe sans rien
+   * garantir. On verifie le type de couleur 6 (RVB + alpha) ET le fait que le
+   * fichier aplati sur le bleu soit sensiblement plus leger — preuve qu'il
+   * couvre reellement un aplat uni la ou l'autre laisse voir le fond.
+   */
+  const blason = dimensionsPNG(path.join(marqueClient, 'logo-technolab.png'));
+  verifier('blason client : PNG avec canal alpha', blason.typeCouleur === 6,
+    `type de couleur ${blason.typeCouleur}`);
+
+  // Le blason est quasi carre : tout calage qui le traite comme un verrou
+  // horizontal le ferait deborder de son bandeau.
+  const rapport = blason.largeur / blason.hauteur;
+  verifier('blason quasi carre (calage en hauteur, jamais en largeur)',
+    rapport > 0.9 && rapport < 1.2, `rapport ${rapport.toFixed(3)}`);
+
+  // --- Icones d'application ---
+  for (const cote of [16, 32, 180, 192, 512]) {
+    const info = dimensionsPNG(path.join(marqueClient, `icone-${cote}.png`));
+    verifier(`icone-${cote} : presente et carree a la bonne taille`,
+      info.signature && info.largeur === cote && info.hauteur === cote,
+      `${info.largeur}x${info.hauteur}`);
+  }
 
   /*
-   * Le vertical bichrome fourni est ampute a gauche (lockup 339x306 contre 344x310
-   * pour les variantes saines, colle au bord du canevas) : il n'est pas livre.
+   * Les fichiers de l'ancienne charte ne doivent plus etre livres : laisses en
+   * place, ils resteraient servis par leur URL et pourraient reapparaitre dans
+   * un cache, un partage social ou un favori.
    */
-  verifier('vertical bichrome ampute non livre',
-    !fs.existsSync(path.join(marqueClient, 'logo-vertical-bichrome.svg')));
+  const ANCIENS = [
+    'logo-horizontal.svg', 'logo-horizontal-marine.svg', 'logo-vertical.svg',
+    'logo-vertical-inverse.svg', 'icone-marine.svg', 'icone-claire.svg',
+    'icone-monochrome.svg',
+  ];
+  const survivants = ANCIENS.filter((n) => fs.existsSync(path.join(marqueClient, n)));
+  verifier('fichiers de l ancienne charte retires', survivants.length === 0,
+    survivants.join(', ') || 'aucun');
 
   // ====================== GABARIT DES EMAILS ======================
   const { composerEmail, composerTexte, CID_LOGO } = await import(SRC + 'services/email.template.js');
@@ -203,38 +210,140 @@ try {
   verifier('email : version texte brut sans balises',
     !texte.includes('<') && texte.includes('https://exemple.test/action'));
 
+  // ---------------- Fiche institutionnelle du pied ----------------
+
+  const { env: config } = await import(SRC + 'config/env.js');
+
+  /*
+   * Le pied porte l'identite de l'etablissement. Chaque mention etant
+   * configurable, on verifie qu'elle est REPRISE quand elle existe — et non
+   * qu'une valeur precise est presente, ce qui casserait a la premiere
+   * relecture de l'adresse par la direction.
+   */
+  for (const [champ, valeur] of Object.entries({
+    adresse: config.etablissement.adresse,
+    telephone: config.etablissement.telephone,
+    email: config.etablissement.email,
+  })) {
+    if (!valeur) continue;
+    verifier(`email : le pied reprend ${champ}`, html.includes(valeur), valeur);
+    verifier(`email texte : le pied reprend ${champ}`, texte.includes(valeur));
+  }
+
+  /*
+   * Une mention non renseignee doit etre OMISE, jamais rendue a vide : un pied
+   * affichant « Tel. » suivi de rien fait plus de degats qu'une ligne absente.
+   */
+  verifier('email : aucune etiquette orpheline dans le pied',
+    !/Tel\.\s*(&nbsp;·|<\/p>)/.test(html) && !/Agrement\s*(&nbsp;·|<\/p>)/.test(html));
+
+  // Une adresse de reponse existant, le pied ne doit plus dire « ne pas repondre ».
+  if (config.smtp.repondreA) {
+    verifier('email : le pied invite a repondre a l adresse relevee',
+      html.includes(config.smtp.repondreA) && !html.includes('ne pas repondre'),
+      config.smtp.repondreA);
+  }
+
+  // ---------------- Habillage par nature d evenement ----------------
+
+  const { sujetNotification } = await import(SRC + 'services/email.service.js');
+
+  /*
+   * Chaque nature de notification porte son propre prefixe d'objet : les
+   * messageries regroupant par sujet, une famille distingue d'un coup d'oeil
+   * une absence — qui appelle une reaction — d'une trace de paiement.
+   *
+   * Aucun envoi reel n'a lieu : le sujet est calcule par une fonction pure, qui
+   * ne touche ni le reseau ni la configuration.
+   */
+  const PREFIXES = {
+    absence: '[Absence]',
+    note: '[Notes]',
+    paiement: '[Scolarite]',
+    examen: '[Examens]',
+  };
+
+  for (const [type, prefixe] of Object.entries(PREFIXES)) {
+    const sujet = sujetNotification(type, 'Titre du message');
+    verifier(`email ${type} : objet prefixe ${prefixe}`,
+      sujet === `${prefixe} Titre du message`, sujet);
+  }
+
+  const distincts = new Set(
+    Object.keys(PREFIXES).map((t) => sujetNotification(t, 'X'))
+  );
+  verifier('email : les quatre natures donnent quatre objets distincts',
+    distincts.size === 4, `${distincts.size} objets`);
+
+  // Une nature inconnue ne doit ni prefixer, ni faire echouer l'envoi.
+  verifier('email : une nature inconnue retombe sur l objet nu',
+    sujetNotification('inexistant', 'Titre') === 'Titre',
+    sujetNotification('inexistant', 'Titre'));
+  verifier('email : une nature absente retombe sur l objet nu',
+    sujetNotification(undefined, 'Titre') === 'Titre');
+
   // ====================== SERVICE D EMAIL ======================
-  const { envoyerEmail, envoiReelActif, optionsTransport } =
+  const { envoyerEmail, envoiReelActif, modeEnvoi, composerExpediteur, interpreterReponse } =
     await import(SRC + 'services/email.service.js');
 
   /*
-   * Le choix du transport est verifie sur la FONCTION PURE, a qui l'on passe une
+   * Le choix du mode est verifie sur la FONCTION PURE, a qui l'on passe une
    * configuration explicite. Tester l'environnement de la machine reviendrait a
-   * ecrire « aucun SMTP n'est configure ici » : l'assertion casserait le jour ou
-   * la messagerie passe reellement en production.
+   * ecrire « aucune cle n'est configuree ici » : l'assertion casserait le jour
+   * ou la messagerie passe reellement en production.
    */
-  verifier('transport : sans hote declare, on journalise',
-    optionsTransport({ host: '' }).jsonTransport === true);
+  verifier('transport : sans cle d API, mode degrade',
+    modeEnvoi({ cleApi: '' }) === 'journal');
+  verifier('transport : avec cle d API, envoi reel',
+    modeEnvoi({ cleApi: 're_exemple' }) === 'resend');
 
-  const port587 = optionsTransport({ host: 'smtp.exemple.test', port: 587, user: 'u', pass: 'p' });
-  verifier('transport : port 587 negocie STARTTLS (secure = false)',
-    port587.secure === false && port587.host === 'smtp.exemple.test');
-  verifier('transport : identifiants transmis quand un utilisateur est declare',
-    port587.auth?.user === 'u' && port587.auth?.pass === 'p');
-
-  const port465 = optionsTransport({ host: 'smtp.exemple.test', port: 465 });
-  verifier('transport : port 465 chiffre des la connexion (secure = true)',
-    port465.secure === true);
-  verifier('transport : relais sans authentification accepte',
-    port465.auth === undefined);
+  // --- Composition de l'expediteur ---
+  verifier('expediteur : adresse nue composee avec le nom',
+    composerExpediteur({ nomExpediteur: 'TechnoLAB-ISTA', adresseExpediteur: 'mails@exemple.test' })
+    === 'TechnoLAB-ISTA <mails@exemple.test>');
 
   /*
-   * L'envoi complet n'est exerce que si la machine n'a PAS de SMTP configure :
+   * Un .env herite de la configuration SMTP precedente porte deja la forme
+   * complete. La recomposer donnerait « Nom <Nom <adresse>> », que le
+   * fournisseur rejetterait — et le refus n'apparaitrait qu'a l'envoi reel.
+   */
+  verifier('expediteur : une adresse deja composee n est pas recomposee',
+    composerExpediteur({ nomExpediteur: 'TechnoLAB-ISTA', adresseExpediteur: 'Ancien <a@b.test>' })
+    === 'Ancien <a@b.test>');
+
+  verifier('expediteur : sans nom, l adresse seule suffit',
+    composerExpediteur({ adresseExpediteur: 'a@b.test' }) === 'a@b.test');
+  verifier('expediteur : configuration vide ne fabrique rien',
+    composerExpediteur({}) === '');
+
+  /*
+   * Lecture de la reponse du fournisseur.
+   *
+   * Le point critique : Resend NE LEVE PAS sur un refus applicatif — adresse
+   * invalide, domaine non verifie, quota depasse. Il renvoie un objet dont seul
+   * `error` est renseigne. Un code qui ne surveillerait que l'exception
+   * compterait ces refus comme des envois reussis.
+   */
+  const accepte = interpreterReponse({ data: { id: 'abc-123' } });
+  verifier('reponse : un envoi accepte rend son identifiant',
+    accepte.envoye === true && accepte.id === 'abc-123' && accepte.transport === 'resend');
+
+  const refuse = interpreterReponse({ error: { message: 'Invalid `to` field' } });
+  verifier('reponse : un refus applicatif est capture, sans exception',
+    refuse.envoye === false && refuse.transport === 'echec'
+    && refuse.erreur === 'Invalid `to` field',
+    refuse.erreur);
+
+  verifier('reponse : une erreur sans message reste exploitable',
+    interpreterReponse({ error: {} }).envoye === false);
+
+  /*
+   * L'envoi complet n'est exerce que si la machine n'a PAS de cle configuree :
    * sur un poste de production, ce test posterait un vrai message a une adresse
    * fictive, ce qui degrade la reputation du domaine expediteur.
    */
   if (envoiReelActif()) {
-    console.log('INFO  SMTP configure sur cette machine : envoi de bout en bout non exerce');
+    console.log('INFO  Cle Resend presente sur cette machine : envoi de bout en bout non exerce');
   } else {
     const resultat = await envoyerEmail({
       destinataire: 'test@exemple.test',
@@ -246,11 +355,17 @@ try {
       resultat.transport === 'journal' && resultat.envoye === false);
   }
 
-  // Une adresse vide ne doit jamais faire remonter d'exception, et nodemailer la
-  // rejette localement : aucun paquet ne quitte la machine, meme SMTP configure.
+  /*
+   * Une adresse vide est ecartee AVANT tout appel reseau : elle ne vaut pas un
+   * aller-retour, et le fournisseur la refuserait de toute facon. Le service ne
+   * doit pour autant jamais lever — l'action metier qui a declenche ce courrier
+   * a deja abouti.
+   */
   const echec = await envoyerEmail({ destinataire: '', sujet: 'Test', titre: 'Test' });
   verifier('un echec d envoi ne leve pas d exception',
     typeof echec === 'object' && echec.envoye === false, echec.transport);
+  verifier('une adresse vide n atteint jamais le reseau',
+    echec.transport !== 'resend', echec.transport);
 
   // ============== MOT DE PASSE OUBLIE : L EMAIL NE BLOQUE PAS ==============
   const r = await appel('/auth/forgot-password', {
@@ -271,21 +386,48 @@ try {
       pdf.buffer.includes('/Image'), 'XObject image present');
 
     // Le texte du bandeau a laisse place au logo : plus de nom en toutes lettres en en-tete.
+    /*
+     * Extraction des flux de contenu du PDF.
+     *
+     * Deux pieges, qui faisaient que cette boucle ne rendait qu'UN flux — une
+     * police binaire — au lieu des quatre du document :
+     * - « stream » apparait aussi a l'interieur de « endstream » ; sans le
+     *   filtrer, la recherche repart au milieu du marqueur de fin ;
+     * - il faut reprendre APRES « endstream », et non a son debut.
+     *
+     * Le flux de dessin etant alors absent, le controle de couleurs qui suit
+     * passait sur du bruit binaire : il ne verifiait rien.
+     */
+    const FIN = 'endstream';
     const flux = [];
     let i = 0;
     while ((i = pdf.buffer.indexOf('stream', i)) !== -1) {
+      if (i >= 3 && pdf.buffer.subarray(i - 3, i).toString('latin1') === 'end') { i += 6; continue; }
       let d = i + 6;
       if (pdf.buffer[d] === 13) d += 1;
       if (pdf.buffer[d] === 10) d += 1;
-      const f = pdf.buffer.indexOf('endstream', d);
+      const f = pdf.buffer.indexOf(FIN, d);
       if (f === -1) break;
       try { flux.push(zlib.inflateSync(pdf.buffer.subarray(d, f)).toString('latin1')); } catch { /* flux binaire */ }
-      i = f;
+      i = f + FIN.length;
     }
     const contenu = flux.join('');
+    /*
+     * Les couleurs de la charte doivent reellement figurer dans le flux de dessin.
+     *
+     * PDF exprime ses couleurs en composantes flottantes 0-1 : on cherche donc la
+     * composante verte du vert de marque (129/255) et la composante bleue du bleu
+     * d'autorite (116/255), chacune assez singuliere pour ne pas apparaitre par
+     * hasard. Le controle precedent se contentait de la presence d'un operateur
+     * de couleur quelconque — il serait reste vert avec une charte entierement
+     * fausse.
+     */
+    const composante = (canal) => String(canal / 255).slice(0, 12);
+    const vertPresent = contenu.includes(composante(129));
+    const bleuPresent = contenu.includes(composante(116));
     verifier('recu PDF : couleurs de la charte dans le flux de dessin',
-      contenu.includes('0.043137254901960784') || contenu.includes('scn'),
-      'operateurs de couleur presents');
+      vertPresent && bleuPresent,
+      `vert ${vertPresent ? 'ok' : 'absent'}, bleu ${bleuPresent ? 'ok' : 'absent'}`);
   } else {
     verifier('recu PDF genere', false, 'aucun paiement valide en base');
   }

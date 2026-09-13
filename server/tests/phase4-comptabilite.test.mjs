@@ -278,6 +278,51 @@ try {
   r = await appel(`/frais/${fraisTest._id}`, { method: 'DELETE', token: admin });
   verifier('suppression refusee si des echeances en dependent', r.status === 400, r.data?.message);
 
+  // ================== RAPPELS D ECHEANCE AUX FAMILLES ==================
+
+  /*
+   * La relance est un geste de CAISSE : ni le professeur ni le surveillant ne
+   * doivent pouvoir l'envoyer. Une relance adressee a tort engage
+   * l'etablissement aupres des familles.
+   */
+  const profRappel = await connecter('professeur@technolab-ista.edu');
+  r = await appel('/echeances/rappels', {
+    method: 'POST', token: profRappel, body: { joursAvant: 0 },
+  });
+  verifier('un professeur ne peut pas relancer les familles', r.status === 403,
+    `HTTP ${r.status}`);
+
+  /*
+   * La SIMULATION montre le perimetre sans rien envoyer : c'est la seule
+   * protection contre une relance massive partie par inadvertance.
+   */
+  const simulation = await appel('/echeances/rappels', {
+    method: 'POST', token: admin, body: { joursAvant: 0, simulation: true },
+  });
+  verifier('la simulation renvoie le perimetre sans envoyer',
+    simulation.status === 200 && simulation.data.simulation === true
+    && typeof simulation.data.familles === 'number',
+    `${simulation.data?.familles} famille(s)`);
+
+  verifier('la simulation ne retient aucune echeance soldee',
+    (simulation.data.apercu || []).every((a) => a.reste > 0));
+
+  /*
+   * `joursAvant` elargit le perimetre vers l'avenir : une fenetre de 60 jours ne
+   * peut pas toucher moins de familles qu'une fenetre nulle.
+   */
+  const large = await appel('/echeances/rappels', {
+    method: 'POST', token: admin, body: { joursAvant: 60, simulation: true },
+  });
+  verifier('une fenetre plus large ne reduit jamais le perimetre',
+    large.data.familles >= simulation.data.familles,
+    `${simulation.data.familles} a 0 jour, ${large.data.familles} a 60 jours`);
+
+  r = await appel('/echeances/rappels', {
+    method: 'POST', token: admin, body: { joursAvant: 500 },
+  });
+  verifier('une fenetre hors bornes est refusee', r.status === 400, `HTTP ${r.status}`);
+
   console.log(`\nResultat : ${ok.length} succes, ${ko.length} echec(s)`);
   if (ko.length) console.log('Echecs :', ko);
 } finally {

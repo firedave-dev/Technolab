@@ -16,10 +16,13 @@
  *    de le facturer sous un autre.
  */
 import { Link } from 'react-router-dom';
-import { AlertTriangle, ArrowRight, FileText, ShieldCheck, Wallet } from 'lucide-react';
-import Seo, { SCHEMA_ETABLISSEMENT } from '../../components/Seo.jsx';
+import { AlertTriangle, ArrowRight, FileText, ShieldCheck, Wallet, Download, ChevronDown } from 'lucide-react';
+import Seo, {
+  SCHEMA_ETABLISSEMENT, assembler, schemaFilAriane, schemaQuestions,
+} from '../../components/Seo.jsx';
 import Photo from '../../components/Photo.jsx';
 import { formaterMontant } from '../../utils/montant.js';
+import { useDocumentsPublics } from '../../hooks/useScolarite.js';
 import {
   ANNEE_TARIFAIRE,
   AVANTAGE_PAIEMENT,
@@ -28,6 +31,7 @@ import {
   MONTANT_MIN,
   PERIMETRE_TARIFAIRE,
   PIECES_INSCRIPTION,
+  QUESTIONS_ADMISSION,
   POLES,
   TARIFS,
   TARIF_MAITRISE_MASTER2,
@@ -35,6 +39,11 @@ import {
 } from '../../utils/formations.js';
 
 export default function Admissions() {
+  const { data: documents } = useDocumentsPublics();
+  const ficheDisponible = (documents?.documents || []).some(
+    (d) => d.cle === 'fiche-inscription' && d.disponible
+  );
+
   return (
     <>
       <Seo
@@ -46,7 +55,11 @@ export default function Admissions() {
           + `cycle et le pôle, ${formaterMontant(FRAIS_INSCRIPTION.montant)} de frais `
           + 'd’inscription. Pièces à fournir et modalités.'
         }
-        schema={SCHEMA_ETABLISSEMENT}
+        schema={assembler(
+          SCHEMA_ETABLISSEMENT,
+          schemaFilAriane([{ nom: 'Admissions et tarifs', chemin: '/admissions' }]),
+          schemaQuestions(QUESTIONS_ADMISSION),
+        )}
       />
 
       <section className="border-b border-slate-200 bg-brand-50/40">
@@ -89,7 +102,7 @@ export default function Admissions() {
           </div>
 
           <figure className="overflow-hidden rounded-2xl shadow-sm ring-1 ring-slate-900/5">
-            <Photo nom="campus-groupe" className="h-auto w-full object-cover" />
+            <Photo nom="etudiants-groupe" className="h-auto w-full object-cover" />
           </figure>
         </section>
 
@@ -219,17 +232,66 @@ export default function Admissions() {
           </div>
         </section>
 
+
+        {/*
+          Questions frequentes.
+
+          Affichees en clair, et non repliees derriere un accordeon ferme : le
+          contenu masque par defaut pese moins dans l'evaluation d'une page, et
+          surtout un moteur generatif ne cite que ce qu'il lit. `<details>` sert
+          ici a la commodite de lecture, avec le premier element ouvert.
+        */}
+        <section aria-labelledby="titre-questions">
+          <h2 id="titre-questions" className="text-3xl font-bold tracking-tight text-marine">
+            Questions fréquentes
+          </h2>
+          <p className="mt-3 max-w-2xl text-slate-600">
+            Les réponses ci-dessous reprennent les informations de la brochure officielle
+            de l’établissement.
+          </p>
+
+          <div className="mt-8 divide-y divide-slate-200 overflow-hidden rounded-xl border border-slate-200 bg-white">
+            {QUESTIONS_ADMISSION.map(({ question, reponse }, index) => (
+              <details key={question} open={index === 0} className="group">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-6 py-4 text-left font-bold text-marine transition hover:bg-slate-50">
+                  <h3 className="text-base">{question}</h3>
+                  <ChevronDown
+                    className="h-4 w-4 shrink-0 text-slate-400 transition-transform group-open:rotate-180"
+                    aria-hidden="true"
+                  />
+                </summary>
+                <p className="px-6 pb-5 leading-relaxed text-slate-600">{reponse}</p>
+              </details>
+            ))}
+          </div>
+        </section>
+
         <section className="sur-marine rounded-2xl bg-marine px-8 py-12 sm:px-12" aria-labelledby="titre-suite">
           <h2 id="titre-suite" className="text-2xl font-bold tracking-tight text-white">
             Une question sur votre dossier ?
           </h2>
           <p className="mt-3 max-w-xl text-clair-sur-fonce">
-            Le secrétariat instruit chaque candidature et remet la fiche d’inscription.
-            Une fois inscrit, l’étudiant retrouve son échéancier, ses règlements et ses
-            reçus dans son espace personnel.
+            Le secrétariat instruit chaque candidature. Une fois inscrit, l’étudiant
+            retrouve son échéancier, ses règlements et ses reçus dans son espace
+            personnel.
           </p>
 
           <div className="mt-6 flex flex-wrap gap-3">
+            {/*
+              Le bouton n'apparaît QUE si le fichier est réellement en place :
+              l'API annonce ce qu'elle sait servir. Un lien de téléchargement qui
+              échoue ferait croire au candidat que le site est en panne.
+            */}
+            {ficheDisponible && (
+              <a
+                href="/api/public/fiche-inscription"
+                download
+                className="action-relief inline-flex items-center gap-2 rounded-lg bg-ista px-5 py-3 text-sm font-bold text-white hover:bg-brand-700"
+              >
+                <Download className="h-4 w-4" aria-hidden="true" />
+                Télécharger la fiche d’inscription
+              </a>
+            )}
             <Link
               to="/a-propos"
               className="inline-flex items-center gap-2 rounded-lg bg-white px-5 py-3 text-sm font-bold text-marine transition hover:bg-slate-100"

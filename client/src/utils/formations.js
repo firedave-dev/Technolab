@@ -31,7 +31,48 @@
 export const NOM_COMPLET = 'Institut Supérieur de Technologies Appliquées';
 export const SIGLE = 'TechnoLAB - ISTA';
 export const ANNEE_FONDATION = 1998;
-export const SITE_OFFICIEL = 'https://www.technolab-ista.net';
+export const SITE_OFFICIEL = 'https://technolab-ista.org';
+
+/**
+ * Identite administrative, telle qu'elle figure sur les documents officiels.
+ *
+ * Une precision a garder en tete : le siege est a Bamako (boite postale), et
+ * l'etablissement enseigne a Sevare, dans la region de Mopti — c'est le
+ * « contexte regional Mopti » de la grille tarifaire. Les deux adresses sont
+ * donc portees distinctement plutot que fondues en une seule.
+ *
+ * Ces valeurs alimentent le pied du site public ET les donnees structurees
+ * schema.org : une seule source, donc aucun risque qu'un moteur de recherche
+ * lise une adresse differente de celle affichee.
+ */
+/**
+ * Profils officiels de l'etablissement.
+ *
+ * Ils alimentent la propriete `sameAs` des donnees structurees, qui relie la
+ * fiche du site aux comptes sociaux. C'est ce qui permet a un moteur de
+ * confirmer qu'il s'agit bien de la MEME entite, plutot que de plusieurs
+ * organisations portant un nom voisin — le signal le plus economique pour un
+ * etablissement recemment mis en ligne.
+ *
+ * Aucune chaine YouTube a ce jour : declarer un profil inexistant affaiblirait
+ * l'ensemble.
+ */
+export const RESEAUX = [
+  { nom: 'Facebook', url: 'https://www.facebook.com/TechnolabIstaOfficielle' },
+  { nom: 'LinkedIn', url: 'https://www.linkedin.com/company/technolab-ista' },
+  { nom: 'Instagram', url: 'https://www.instagram.com/technolab_ista_officielle' },
+  { nom: 'TikTok', url: 'https://www.tiktok.com/@technolabistaofficiel' },
+];
+
+export const IDENTITE = {
+  boitePostale: 'B.P. E3123 Bamako, Mali',
+  siteEnseignement: 'Sévaré, région de Mopti',
+  telephones: ['+223 20 29 01 54', '+223 20 29 19 43'],
+  email: 'technolab@technolab-ista.net',
+  agrement: 'N° 0699/98 MESSRS',
+  registreCommerce: 'RC 1316',
+  numeroDni: '685 101 3832',
+};
 
 /**
  * Faits verifiables portes par la brochure, repris sur la page « A propos ».
@@ -42,10 +83,10 @@ export const SITE_OFFICIEL = 'https://www.technolab-ista.net';
  * s'expose autant qu'il se valorise. A reintegrer si la direction fournit l'etude.
  */
 export const CHIFFRES = [
-  { valeur: `${new Date().getFullYear() - ANNEE_FONDATION} ans`, libelle: 'd’expérience' },
-  { valeur: '16 000+', libelle: 'diplômés dans le monde' },
-  { valeur: '30+', libelle: 'diplômes reconnus par le CAMES' },
-  { valeur: '3', libelle: 'cycles, du Bac+2 au Bac+5' },
+  { nombre: new Date().getFullYear() - ANNEE_FONDATION, suffixe: ' ans', libelle: 'd’expérience' },
+  { nombre: 16000, suffixe: '+', libelle: 'diplômés dans le monde' },
+  { nombre: 30, suffixe: '+', libelle: 'diplômes reconnus par le CAMES' },
+  { nombre: 3, suffixe: '', libelle: 'cycles, du Bac+2 au Bac+5' },
 ];
 
 /** Agrements et reconnaissances institutionnelles. */
@@ -305,3 +346,70 @@ export const AVANTAGE_PAIEMENT = {
 const MONTANTS = TARIFS.flatMap((l) => POLES.map((p) => l[p.cle]));
 export const MONTANT_MIN = Math.min(...MONTANTS);
 export const MONTANT_MAX = Math.max(...MONTANTS);
+
+
+/**
+ * Questions frequentes sur l'admission.
+ *
+ * DEUX REGLES, et la seconde est une consigne formelle de Google :
+ *
+ * 1. chaque reponse est CONSTRUITE a partir des constantes ci-dessus. Recopier
+ *    un montant a la main creerait une seconde verite, qui divergerait de la
+ *    grille a la premiere revalorisation ;
+ *
+ * 2. chaque question est AFFICHEE sur la page. Declarer en donnees structurees
+ *    une reponse absente du contenu visible fait perdre les resultats enrichis,
+ *    et peut valoir une action manuelle.
+ *
+ * Elles servent aussi les moteurs generatifs : interroges sur « les frais
+ * d'inscription a TechnoLAB-ISTA », ils reprennent une reponse explicitement
+ * formulee bien plus volontiers qu'un chiffre isole dans un tableau.
+ */
+export const QUESTIONS_ADMISSION = [
+  {
+    question: 'Quels sont les frais d’inscription à TechnoLAB-ISTA ?',
+    reponse:
+      `Les frais d’inscription s’élèvent à ${FRAIS_INSCRIPTION.montant.toLocaleString('fr-FR')} FCFA. `
+      + 'Ils sont dus une seule fois, à l’inscription, et ne font pas partie des frais '
+      + 'académiques annuels.',
+  },
+  {
+    question: 'Combien coûte une année d’études ?',
+    reponse:
+      `Les frais académiques annuels vont de ${MONTANT_MIN.toLocaleString('fr-FR')} à `
+      + `${MONTANT_MAX.toLocaleString('fr-FR')} FCFA selon le niveau et le pôle disciplinaire, `
+      + `pour l’année ${ANNEE_TARIFAIRE}. Les sciences économiques et de gestion sont au tarif `
+      + 'le plus bas, les sciences de l’ingénieur au plus élevé.',
+  },
+  {
+    question: 'Quelles pièces faut-il fournir pour s’inscrire ?',
+    reponse: `Le dossier comprend ${PIECES_INSCRIPTION.length} pièces : `
+      + `${PIECES_INSCRIPTION.join(' ; ')}.`,
+  },
+  {
+    question: 'Quels diplômes prépare TechnoLAB-ISTA ?',
+    reponse:
+      `L’institut prépare ${NOMBRE_PARCOURS} parcours répartis sur trois cycles : le DUT `
+      + '(Bac+2), la licence (Bac+3) et le master (Bac+5), dans trois pôles — sciences '
+      + 'économiques et de gestion, sciences et technologies, sciences de l’ingénieur.',
+  },
+  {
+    question: 'Les diplômes sont-ils reconnus ?',
+    reponse:
+      'L’établissement est agréé par le gouvernement malien et plus de trente de ses diplômes '
+      + 'sont reconnus par le CAMES, le Conseil Africain et Malgache pour l’Enseignement '
+      + 'Supérieur. Il est également membre de la Fédération Européenne des Écoles.',
+  },
+  {
+    question: 'Où se situe TechnoLAB-ISTA ?',
+    reponse:
+      `L’enseignement se déroule à ${IDENTITE.siteEnseignement}, au Mali. L’adresse postale `
+      + `de l’établissement est ${IDENTITE.boitePostale}. Le secrétariat est joignable au `
+      + `${IDENTITE.telephones.join(' ou au ')}.`,
+  },
+  {
+    question: 'Peut-on échelonner le paiement de la scolarité ?',
+    reponse: AVANTAGE_PAIEMENT.texte
+      + ' Les modalités d’échelonnement sont fixées par le secrétariat lors de l’inscription.',
+  },
+];

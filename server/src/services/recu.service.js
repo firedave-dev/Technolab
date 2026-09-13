@@ -23,16 +23,16 @@ import { env } from '../config/env.js';
 import { formaterMontant, montantEnLettres } from '../utils/montantEnLettres.js';
 
 const DOSSIER = path.dirname(fileURLToPath(import.meta.url));
-/* Logo sur aplat marine : son fond (#0B2E52) se fond exactement dans le bandeau. */
-const LOGO_MARINE = path.resolve(DOSSIER, '../marque/logo-horizontal-marine.png');
+/* Blason aplati sur le bleu du bandeau : son fond s'y fond exactement. */
+const LOGO_MARINE = path.resolve(DOSSIER, '../marque/blason-sur-marine.png');
 
 const MARGE = 46;
 const LARGEUR_PAGE = 595.28; // A4 portrait
 const LARGEUR_UTILE = LARGEUR_PAGE - MARGE * 2;
 
 /* Couleurs de la charte Technolab ISTA. */
-const MARINE = '#0b2e52';
-const ISTA = '#1f6fe0';
+const MARINE = '#2e4474';
+const ISTA = '#038129';
 const GRIS = '#64748b';
 const GRIS_CLAIR = '#94a3b8';
 const BORDURE = '#e2e8f0';
@@ -56,8 +56,26 @@ const dateFr = (valeur) =>
 function enTete(doc, paiement) {
   doc.rect(0, 0, LARGEUR_PAGE, 118).fill(MARINE);
 
-  // Le fichier porte deja sa zone de protection : aucune marge a ajouter.
-  doc.image(LOGO_MARINE, MARGE - 12, 26, { width: 186 });
+  /*
+   * Verrou de marque : blason + nom compose, et non une image unique.
+   *
+   * Le logo officiel est un blason quasi carre (263 x 245). Le poser a la
+   * largeur de l'ancien verrou horizontal lui donnerait 173 pt de haut dans un
+   * bandeau qui n'en fait que 118 : il deborderait. On le cale donc sur la
+   * HAUTEUR disponible, et le nom est ecrit a cote — ce qui le rend en prime
+   * selectionnable et cherchable dans le PDF, ce qu'une image n'est jamais.
+   */
+  const hauteurBlason = 62;
+  const largeurBlason = Math.round(hauteurBlason * (263 / 245));
+  doc.image(LOGO_MARINE, MARGE, 28, { height: hauteurBlason });
+
+  const xNom = MARGE + largeurBlason + 12;
+  doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(17)
+    .text('TechnoLAB-ISTA', xNom, 38);
+  doc.fillColor('#c4cddc').font('Helvetica').fontSize(7)
+    .text('Institut Superieur de Technologies Appliquees', xNom, 60, {
+      width: 200, characterSpacing: 0.3,
+    });
 
   const largeurCartouche = 168;
   const xCartouche = LARGEUR_PAGE - MARGE - largeurCartouche;
@@ -72,7 +90,7 @@ function enTete(doc, paiement) {
   doc.fillColor(MARINE).font('Helvetica-Bold').fontSize(15)
     .text(paiement.numeroRecu, xCartouche, 58, { width: largeurCartouche, align: 'center' });
 
-  doc.fillColor('#7fb6f7').font('Helvetica').fontSize(8)
+  doc.fillColor('#c4cddc').font('Helvetica').fontSize(8)
     .text(`Emis le ${dateFr(new Date())}`, xCartouche, 90, {
       width: largeurCartouche, align: 'right',
     });
@@ -114,13 +132,16 @@ function paveMontant(doc, paiement, y, qr) {
 
   doc.roundedRect(MARGE, y, LARGEUR_UTILE, hauteur, 6).fill(ISTA);
 
-  doc.fillColor('#bfdbfe').font('Helvetica-Bold').fontSize(8.5)
+  // Teinte secondaire sur l'aplat vert : 4,70:1, donc conforme AA. Les bleus
+  // tres clairs de l'ancienne charte n'y atteignaient que 3,54 et 4,12.
+
+  doc.fillColor('#f2f9f4').font('Helvetica-Bold').fontSize(8.5)
     .text('MONTANT PERCU', MARGE + 20, y + 14, { characterSpacing: 1 });
 
   doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(30)
     .text(formaterMontant(paiement.montant), MARGE + 20, y + 30);
 
-  doc.fillColor('#dbeafe').font('Helvetica-Oblique').fontSize(8)
+  doc.fillColor('#f2f9f4').font('Helvetica-Oblique').fontSize(8)
     .text(
       `Arrete a la somme de ${montantEnLettres(paiement.montant)} francs CFA.`,
       MARGE + 20, y + 66,

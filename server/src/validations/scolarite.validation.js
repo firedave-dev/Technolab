@@ -17,6 +17,9 @@ export const creerMatiereSchema = z.object({
   nom: z.string().trim().min(2, 'Nom trop court').max(80),
   code: z.string().trim().min(2, 'Code trop court').max(12),
   coefficient: z.coerce.number().min(1).max(10).optional(),
+  // Le credit n'est PAS accepte en entree : il est deduit du coefficient.
+  semestre: z.enum(['semestre1', 'semestre2']).optional(),
+  typeMatiere: z.string().trim().toLowerCase().max(32).optional(),
   classe: objectId,
   professeur: objectId.optional().or(z.literal('')),
   anneeScolaire,
@@ -29,6 +32,7 @@ export const majMatiereSchema = creerMatiereSchema.partial().extend({
 
 export const listeMatieresQuerySchema = z.object({
   classe: objectId.optional(),
+  semestre: z.enum(['semestre1', 'semestre2']).optional(),
   professeur: objectId.optional(),
   anneeScolaire: anneeScolaire.optional(),
   actif: z.enum(['true', 'false']).transform((v) => v === 'true').optional(),

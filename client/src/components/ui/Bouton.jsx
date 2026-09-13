@@ -2,7 +2,7 @@
  * Bouton generique avec variantes et etat de chargement.
  *
  * Repartition des couleurs de la charte :
- * - primaire   : aplat bleu d'action (#1F6FE0), blanc dessus — 4,76:1, conforme AA ;
+ * - primaire   : aplat vert de marque (#038129), blanc dessus — 5,03:1, conforme AA ;
  * - secondaire : contour neutre, libelle en marine (couleur d'autorite) ;
  * - discret    : sans fond, pour les actions de second plan ;
  * - danger     : rouge, reserve aux actions destructrices.

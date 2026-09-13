@@ -8,20 +8,26 @@
  * - seule la repartition des moyennes est *ordinale* (Insuffisant -> Tres bien) : elle
  *   recoit une rampe monotone d'une seule teinte, du bleu d'action au marine.
  *
- * La rampe part volontairement de #4A8CE8 et non du bleu clair #7FB6F7 de la charte :
- * ce dernier ne doit jamais apparaitre sur fond clair (2,1:1 sur blanc). Rampe validee
- * (lightness monotone, ecarts >= 0.06, extremite claire a 3,3:1 sur la surface).
+ * La rampe reste d'UNE SEULE teinte, du vert de marque vers son assombrissement,
+ * et ne suit pas le degrade vert -> bleu de la charte : echantillonner ce degrade
+ * donnait deux pas de clarte quasi identiques (6,84 et 7,04 sur blanc), ce qui
+ * brisait la progression qu'une rampe ordinale doit precisement donner a lire.
+ *
+ * Rampe validee : clarte strictement monotone et contraste >= 3:1 sur les cinq pas
+ * (3,82 -> 9,45). Les pas voisins y sont proches — c'est le propre d'une rampe
+ * ordinale — mais l'identite ne repose jamais sur la couleur seule : chaque barre
+ * porte son libelle sur l'axe et sa valeur au-dessus.
  *
  * Les grilles sont des filets pleins d'une nuance au-dessus de la surface — jamais
  * de pointilles, qui se lisent a tort comme un seuil.
  */
 import { Tooltip } from 'recharts';
 
-/** Teinte unique des series : bleu d'action de la charte, 4,8:1 sur fond blanc. */
-export const TEINTE = '#1f6fe0';
+/** Teinte unique des series : vert de marque de la charte, 5,03:1 sur fond blanc. */
+export const TEINTE = '#038129';
 
-/** Rampe ordinale a 5 pas : du bleu d'action au marine, contrastes 3,4:1 a 13,8:1. */
-export const RAMPE_ORDINALE = ['#4a8ce8', '#1f6fe0', '#1a5cbc', '#164a97', '#0b2e52'];
+/** Rampe ordinale a 5 pas : du vert de marque a son pas le plus sombre, 3,8:1 a 9,5:1. */
+export const RAMPE_ORDINALE = ['#2b954b', '#038129', '#026a22', '#025f1e', '#01521a'];
 
 export const ENCRE_AXE = '#64748b';
 export const GRILLE = '#e2e8f0';

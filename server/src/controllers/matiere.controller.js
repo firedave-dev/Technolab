@@ -6,6 +6,7 @@ import { User } from '../models/User.js';
 import { catchAsync } from '../utils/catchAsync.js';
 import { ApiError } from '../utils/ApiError.js';
 import { ROLES } from '../config/roles.js';
+import { creditsDepuisCoefficient, peutAjouter } from '../services/appariement.service.js';
 
 /** Verifie que la classe et le professeur references existent bien. */
 async function verifierReferences({ classe, professeur }) {
@@ -74,6 +75,37 @@ export const creer = catchAsync(async (req, res) => {
     anneeScolaire: donnees.anneeScolaire,
   });
   if (doublon) throw ApiError.conflict('Ce code de matiere existe deja pour cette classe');
+
+  /*
+   * Bouclage du semestre a 30 credits — verifie ICI, et pas seulement dans
+   * l'assistant de saisie.
+   *
+   * Le refus porte sur deux cas distincts : le depassement du plafond, et
+   * l'entree en IMPASSE, ou le total reste sous 30 mais ou plus aucune
+   * repartition ne permet de l'atteindre. Une interface qui n'arreterait que le
+   * premier laisserait construire un semestre impossible a boucler, decouvert
+   * seulement au moment de composer les UE.
+   */
+  const semestre = donnees.semestre || 'semestre1';
+  const credits = creditsDepuisCoefficient(donnees.coefficient ?? 1);
+
+  const existantes = await Matiere.find({
+    classe: donnees.classe,
+    semestre,
+    anneeScolaire: donnees.anneeScolaire,
+    actif: true,
+  }).select('creditsEcts').lean();
+
+  const n2 = existantes.filter((m) => m.creditsEcts === 2).length;
+  const n3 = existantes.filter((m) => m.creditsEcts === 3).length;
+  const verdict = peutAjouter(n2, n3, credits);
+
+  if (!verdict.autorise) {
+    throw ApiError.badRequest(
+      `Impossible d ajouter cette matiere (${credits} credits) : ${verdict.motif}. `
+      + `Le semestre compte deja ${n2} matiere(s) a 2 credits et ${n3} a 3.`
+    );
+  }
 
   const matiere = await Matiere.create(donnees);
   await matiere.populate([

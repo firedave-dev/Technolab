@@ -12,7 +12,7 @@
  */
 import { Link } from 'react-router-dom';
 import { ArrowRight, ClipboardCheck, Globe2, ShieldCheck, Users } from 'lucide-react';
-import Seo, { SCHEMA_ETABLISSEMENT } from '../../components/Seo.jsx';
+import Seo, { SCHEMA_ETABLISSEMENT, assembler, schemaFilAriane } from '../../components/Seo.jsx';
 import Photo from '../../components/Photo.jsx';
 import {
   ANNEE_FONDATION, NOMBRE_PARCOURS, NOM_COMPLET, PARTENARIATS, RECONNAISSANCES, SIGLE,
@@ -62,7 +62,10 @@ export default function APropos() {
           + 'reconnu par le CAMES et la FEDE, accrédité Cisco et Huawei ICT. Organisation, '
           + 'partenariats et suivi de scolarité en ligne.'
         }
-        schema={SCHEMA_ETABLISSEMENT}
+        schema={assembler(
+          SCHEMA_ETABLISSEMENT,
+          schemaFilAriane([{ nom: 'À propos', chemin: '/a-propos' }]),
+        )}
       />
 
       <section className="border-b border-slate-200 bg-brand-50/40">
@@ -105,7 +108,7 @@ export default function APropos() {
           </div>
 
           <figure className="overflow-hidden rounded-2xl shadow-sm ring-1 ring-slate-900/5">
-            <Photo nom="campus-groupe" className="h-auto w-full object-cover" />
+            <Photo nom="assemblee-generale" className="h-auto w-full object-cover" />
             <figcaption className="bg-white px-5 py-3 text-sm text-slate-600">
               Rassemblement dans la cour de l’établissement.
             </figcaption>

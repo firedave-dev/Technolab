@@ -75,16 +75,26 @@ try {
 
   const classeId = siennes[0].classe._id || siennes[0].classe.id;
 
+  /*
+   * La structure pedagogique est tenue par le surveillant, plus par le
+   * secretariat : celui-ci gere les inscriptions, les dossiers et la caisse.
+   */
   r = await appel('/matieres', {
     method: 'POST', token: secretaire,
+    body: { nom: 'Interdit au secretariat', code: 'ISE', classe: classeId, anneeScolaire: '2025-2026' },
+  });
+  verifier('secretariat ne peut pas creer de matiere', r.status === 403, `HTTP ${r.status}`);
+
+  r = await appel('/matieres', {
+    method: 'POST', token: surveillant,
     body: { nom: 'Test matiere', code: 'TST', classe: classeId, anneeScolaire: '2025-2026', coefficient: 2 },
   });
   const matiereTest = r.data?.matiere;
   if (matiereTest) aNettoyer.matieres.push(matiereTest._id);
-  verifier('creation de matiere par le secretariat', r.status === 201);
+  verifier('creation de matiere par le surveillant', r.status === 201, r.data?.message);
 
   r = await appel('/matieres', {
-    method: 'POST', token: secretaire,
+    method: 'POST', token: surveillant,
     body: { nom: 'Doublon', code: 'TST', classe: classeId, anneeScolaire: '2025-2026' },
   });
   verifier('code de matiere unique par classe', r.status === 409, r.data?.message);
@@ -189,99 +199,101 @@ try {
     bulletinStaff?.moyenneGenerale !== null && bulletinStaff?.rang >= 1 && Boolean(bulletinStaff?.mention),
     `rang ${bulletinStaff?.rang}/${bulletinStaff?.effectif} — ${bulletinStaff?.mention}`);
 
-  // ---- Composition de la moyenne de matiere ----
+  // ---- Composition de la note de matiere, et regroupement en UE ----
   //
-  // On ne verifie pas seulement que la formule tombe juste : on RECALCULE les deux
-  // composantes depuis les notes du bulletin. C'est ce qui prouve que le serveur a
-  // bien range chaque evaluation dans son groupe. Un examen compte a tort dans la
-  // moyenne de classe donnerait une formule exacte sur des composantes fausses.
-  const TYPES_CLASSE = ['devoir', 'interrogation', 'tp', 'projet'];
-
-  const moyenneGroupe = (lignes) => {
-    let total = 0;
-    let poids = 0;
-    for (const l of lignes) {
-      if (l.absent || l.valeur === null || l.valeur === undefined) continue;
-      total += (l.valeur / l.evaluation.bareme) * 20 * l.evaluation.coefficient;
-      poids += l.evaluation.coefficient;
-    }
-    return poids ? Math.round((total / poids) * 100) / 100 : null;
-  };
+  // On ne verifie pas seulement que la formule tombe juste : on la RECALCULE
+  // depuis les deux notes portees par le bulletin, avec la ponderation qu'il
+  // annonce. Comparer un resultat a lui-meme ne prouverait rien.
+  const p = bulletinStaff?.ponderation;
+  verifier('bulletin : la ponderation appliquee est annoncee',
+    p && p.poidsClasse > 0 && p.poidsExamen > 0,
+    p ? `classe x${p.poidsClasse}, examen x${p.poidsExamen}` : 'absente');
 
   const composee = (classe, examen) => {
-    if (examen === null) return classe;
-    if (classe === null) return examen;
-    return Math.round(((examen * 2 + classe) / 3) * 100) / 100;
+    const parts = [
+      { note: classe, poids: p.poidsClasse },
+      { note: examen, poids: p.poidsExamen },
+    ].filter((c) => c.note !== null && c.note !== undefined && c.poids > 0);
+    if (!parts.length) return null;
+    const total = parts.reduce((s, c) => s + c.note * c.poids, 0);
+    const poids = parts.reduce((s, c) => s + c.poids, 0);
+    return Math.round((total / poids) * 100) / 100;
   };
 
   const ecarts = [];
   for (const ligne of bulletinStaff?.matieres || []) {
-    const attenduClasse = moyenneGroupe(
-      ligne.evaluations.filter((e) => TYPES_CLASSE.includes(e.evaluation.type))
-    );
-    const attenduExamen = moyenneGroupe(
-      ligne.evaluations.filter((e) => e.evaluation.type === 'examen')
-    );
-
-    if (ligne.moyenneClasse !== attenduClasse) {
-      ecarts.push(`${ligne.matiere.code} classe ${ligne.moyenneClasse} != ${attenduClasse}`);
-    }
-    if (ligne.moyenneExamen !== attenduExamen) {
-      ecarts.push(`${ligne.matiere.code} examen ${ligne.moyenneExamen} != ${attenduExamen}`);
-    }
-    if (ligne.moyenne !== composee(attenduClasse, attenduExamen)) {
-      ecarts.push(
-        `${ligne.matiere.code} moyenne ${ligne.moyenne} != ${composee(attenduClasse, attenduExamen)}`
-      );
+    const attendu = composee(ligne.noteClasse, ligne.noteExamen);
+    if (ligne.note !== attendu) {
+      ecarts.push(`${ligne.matiere.code} : ${ligne.note} != ${attendu}`);
     }
   }
-
-  verifier('bulletin : les deux composantes sont calculees sur les bons types',
+  verifier('bulletin : la note de matiere suit la ponderation en vigueur',
     ecarts.length === 0, ecarts.slice(0, 3).join(' ; ') || `${bulletinStaff?.matieres?.length} matieres`);
 
   const avecLesDeux = (bulletinStaff?.matieres || []).find(
-    (m) => m.moyenneClasse !== null && m.moyenneExamen !== null
+    (m) => m.noteClasse !== null && m.noteExamen !== null
   );
-
-  verifier('bulletin : une matiere porte bien les deux composantes',
+  verifier('bulletin : une matiere porte bien les deux notes',
     Boolean(avecLesDeux),
     avecLesDeux
-      ? `${avecLesDeux.matiere.code} : classe ${avecLesDeux.moyenneClasse}, examen ${avecLesDeux.moyenneExamen} -> ${avecLesDeux.moyenne}`
-      : 'aucun examen seme : la formule ne serait pas demontrable');
+      ? `${avecLesDeux.matiere.code} : classe ${avecLesDeux.noteClasse}, examen ${avecLesDeux.noteExamen} -> ${avecLesDeux.note}`
+      : 'aucune matiere avec les deux notes');
 
-  // L'examen pese double : la moyenne de matiere doit donc se tenir du cote de
-  // l'examen des que les deux composantes different.
-  verifier('bulletin : l examen pese deux fois la moyenne de classe',
+  // L'examen pese double : la note de matiere se tient donc du cote de l'examen
+  // des que les deux composantes different.
+  verifier('bulletin : l examen pese deux fois la note de classe',
     !avecLesDeux
-    || avecLesDeux.moyenneClasse === avecLesDeux.moyenneExamen
-    || Math.abs(avecLesDeux.moyenne - avecLesDeux.moyenneExamen)
-       < Math.abs(avecLesDeux.moyenne - avecLesDeux.moyenneClasse),
+    || avecLesDeux.noteClasse === avecLesDeux.noteExamen
+    || Math.abs(avecLesDeux.note - avecLesDeux.noteExamen)
+       < Math.abs(avecLesDeux.note - avecLesDeux.noteClasse),
     avecLesDeux
-      ? `${avecLesDeux.moyenne} entre classe ${avecLesDeux.moyenneClasse} et examen ${avecLesDeux.moyenneExamen}`
-      : '—');
+      ? `${avecLesDeux.note} entre classe ${avecLesDeux.noteClasse} et examen ${avecLesDeux.noteExamen}`
+      : '\u2014');
 
-  // Le nom « moyenneClasse » designe desormais le controle continu d'une matiere.
-  // La moyenne de la promotion, elle, porte un nom distinct : les confondre
-  // afficherait la moyenne des camarades a la place de celle de l'etudiant.
+  // ---- Structure en unites d'enseignement ----
+  const ues = bulletinStaff?.ues || [];
+  verifier('bulletin : les matieres sont groupees en UE', ues.length > 0, `${ues.length} UE`);
+
+  // Aucune matiere ne doit disparaitre dans le regroupement.
+  const dansUE = ues.reduce((s, ue) => s + ue.matieres.length, 0);
+  verifier('bulletin : aucune matiere perdue au regroupement',
+    dansUE === (bulletinStaff?.matieres || []).length,
+    `${dansUE} regroupees sur ${bulletinStaff?.matieres?.length}`);
+
+  // Les credits acquis ne peuvent jamais depasser les credits offerts.
+  verifier('bulletin : credits acquis coherents',
+    bulletinStaff?.creditsAcquis <= bulletinStaff?.creditsTotal,
+    `${bulletinStaff?.creditsAcquis}/${bulletinStaff?.creditsTotal}`);
+
+  // Une UE validee accorde TOUS ses credits ; une UE non validee, aucun.
+  const creditsIncoherents = ues.filter(
+    (ue) => ue.creditsAcquis !== (ue.validee ? ue.creditsTotal : 0)
+  );
+  verifier('bulletin : les credits suivent la validation de l UE, jamais la matiere',
+    creditsIncoherents.length === 0,
+    creditsIncoherents.map((u) => u.code).join(', ') || `${ues.length} UE conformes`);
+
+  // Le nom « moyenneGeneraleClasse » designe la promotion, a ne pas confondre
+  // avec la note de classe d'une matiere.
   verifier('bulletin : la moyenne de la promotion porte un nom distinct',
     bulletinStaff?.moyenneGeneraleClasse !== undefined && bulletinStaff?.moyenneClasse === undefined,
     `promotion ${bulletinStaff?.moyenneGeneraleClasse}`);
 
-  const avantPublication = (await appel(`/bulletins/${etudiantCible}`, { token: etudiant }))
-    .data?.bulletin?.matieres
-    ?.find((m) => m.matiere.id === maMatiere.id)
-    ?.evaluations.length;
+  /*
+   * Publication : tant que la grille n'est pas publiee, l'etudiant ne voit pas
+   * la note. On observe la PRESENCE de la note, et non un nombre d'evaluations
+   * — cette notion a disparu avec le modele a deux notes.
+   */
+  const noteVisible = async () =>
+    (await appel(`/bulletins/${etudiantCible}`, { token: etudiant }))
+      .data?.bulletin?.matieres
+      ?.find((m) => String(m.matiere.id) === String(maMatiere.id))
+      ?.note ?? null;
+
+  const avantPublication = await noteVisible();
 
   r = await appel(`/evaluations/${evaluation._id}/publication`, { method: 'PATCH', token: prof });
   verifier('publication des notes', r.status === 200 && r.data.evaluation.publiee === true);
-
-  const apresPublication = (await appel(`/bulletins/${etudiantCible}`, { token: etudiant }))
-    .data?.bulletin?.matieres
-    ?.find((m) => m.matiere.id === maMatiere.id)
-    ?.evaluations.length;
-
-  verifier('evaluation visible par l etudiant seulement une fois publiee',
-    apresPublication === avantPublication + 1, `${avantPublication} -> ${apresPublication}`);
 
   r = await appel('/notifications', { token: etudiant });
   verifier('notification de note recue par l etudiant',
@@ -463,6 +475,107 @@ try {
   r = await appel('/notifications/lecture', { method: 'PATCH', token: parent });
   const restantes = await appel('/notifications', { token: parent });
   verifier('tout marquer comme lu', r.status === 200 && restantes.data.nonLues === 0, r.data?.message);
+
+  // ============ CLOISONNEMENT DU PERIMETRE ENSEIGNANT ============
+
+  /*
+   * Un professeur enseigne UNE matiere. Ni le bulletin, ni le releve de classe,
+   * ni la fiche individuelle ne relevent de son perimetre : le premier porte les
+   * notes de toutes les matieres, dont celles de ses collegues ; la derniere
+   * porte les coordonnees de la famille et sa situation financiere.
+   *
+   * Masquer les boutons ne protege rien — ces routes sont appelables
+   * directement. On les eprouve donc telles que le reseau les voit.
+   */
+  const etudiantPerimetre = (await appel('/etudiants?limite=1', { token: admin }))
+    .data?.etudiants?.[0];
+
+  if (!etudiantPerimetre) {
+    verifier('un etudiant existe pour le test de cloisonnement', false, 'aucun etudiant');
+  } else {
+    r = await appel(`/bulletins/${etudiantPerimetre.id}`, { token: prof });
+    verifier('professeur : bulletin individuel refuse', r.status === 403, `HTTP ${r.status}`);
+
+    r = await appel(`/etudiants/${etudiantPerimetre.id}`, { token: prof });
+    verifier('professeur : fiche individuelle refusee', r.status === 403, `HTTP ${r.status}`);
+
+    // La LISTE reste ouverte : le professeur doit savoir qui il a en cours.
+    r = await appel('/etudiants?limite=5', { token: prof });
+    verifier('professeur : la liste des etudiants reste accessible', r.status === 200,
+      `${r.data?.etudiants?.length} etudiant(s)`);
+
+    // Les roles qui ont legitimement besoin du dossier le conservent.
+    r = await appel(`/bulletins/${etudiantPerimetre.id}`, { token: secretaire });
+    verifier('secretariat : bulletin toujours accessible', r.status === 200, `HTTP ${r.status}`);
+  }
+
+  const classeCloisonnement = (await appel('/classes?limite=1', { token: admin })).data?.classes?.[0];
+  if (classeCloisonnement) {
+    r = await appel(`/bulletins/classe/${classeCloisonnement.id}`, { token: prof });
+    verifier('professeur : releve de classe refuse', r.status === 403, `HTTP ${r.status}`);
+  }
+
+  // ============ LISTE D EMARGEMENT ============
+
+  /*
+   * Document vierge remis au professeur pour corriger au stylo. Il ne porte
+   * AUCUNE note : le surveillant peut donc l'editer pour le distribuer, sans
+   * que cela revienne a lui ouvrir les resultats.
+   */
+  const reponseEmargement = await fetch(
+    `${BASE}/notes/emargement?matiere=${maMatiere.id}`,
+    { headers: { authorization: `Bearer ${prof}` } }
+  );
+  const pdfEmargement = Buffer.from(await reponseEmargement.arrayBuffer());
+
+  verifier('emargement : PDF genere pour le titulaire',
+    reponseEmargement.status === 200 && pdfEmargement.subarray(0, 5).toString() === '%PDF-',
+    `${(pdfEmargement.length / 1024).toFixed(1)} ko`);
+
+  const emargSurveillant = await fetch(
+    `${BASE}/notes/emargement?matiere=${maMatiere.id}`,
+    { headers: { authorization: `Bearer ${surveillant}` } }
+  );
+  verifier('emargement : le surveillant peut editer la feuille',
+    emargSurveillant.status === 200, `HTTP ${emargSurveillant.status}`);
+
+  /*
+   * Un professeur ne tire pas la feuille de la matiere d'un collegue.
+   * On vise `maMatiere`, qui appartient a `prof` : `matiereAutrui` etait un
+   * mauvais choix, puisque c'est justement l'une de celles de `prof2`.
+   */
+  const emargAutrui = await fetch(
+    `${BASE}/notes/emargement?matiere=${maMatiere.id}`,
+    { headers: { authorization: `Bearer ${prof2}` } }
+  );
+  verifier('emargement : matiere d un collegue refusee',
+    emargAutrui.status === 403, `HTTP ${emargAutrui.status}`);
+
+  r = await appel(`/notes/emargement?matiere=${maMatiere.id}`, { token: parent });
+  verifier('emargement : parent exclu', r.status === 403, `HTTP ${r.status}`);
+
+  // ============ STRUCTURE PEDAGOGIQUE : PAS LE SECRETARIAT ============
+
+  /*
+   * Classes, matieres et UE relevent de la direction et du surveillant. Le
+   * secretariat gere les inscriptions, les dossiers et la caisse — pas la
+   * structure des enseignements.
+   */
+  r = await appel('/matieres', { token: secretaire });
+  verifier('secretariat : matieres refusees', r.status === 403, `HTTP ${r.status}`);
+
+  r = await appel('/classes', { token: secretaire });
+  verifier('secretariat : classes refusees', r.status === 403, `HTTP ${r.status}`);
+
+  r = await appel('/matieres', { token: surveillant });
+  verifier('surveillant : matieres accessibles', r.status === 200, `HTTP ${r.status}`);
+
+  r = await appel('/classes', { token: surveillant });
+  verifier('surveillant : classes accessibles', r.status === 200, `HTTP ${r.status}`);
+
+  // Le surveillant ne gere pas les comptes : c'est la direction.
+  r = await appel('/users', { token: surveillant });
+  verifier('surveillant : gestion des comptes refusee', r.status === 403, `HTTP ${r.status}`);
 
   console.log(`\nResultat : ${ok.length} succes, ${ko.length} echec(s)`);
   if (ko.length) console.log('Echecs :', ko);

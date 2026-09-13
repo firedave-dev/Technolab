@@ -9,7 +9,10 @@ async function demarrer() {
     const app = createApp();
 
     const server = app.listen(env.port, () => {
-      console.log(`[server] Technolab ISTA API sur https://lab.my-istime.xyz (${env.nodeEnv})`);
+      // L'adresse journalisee est celle OU L'API ECOUTE, pas celle du site :
+      // afficher l'URL du client ici avait deja induit en erreur pendant un
+      // diagnostic de deploiement.
+      console.log(`[server] API TechnoLAB-ISTA a l ecoute sur le port ${env.port} (${env.nodeEnv})`);
     });
 
     // Arret propre

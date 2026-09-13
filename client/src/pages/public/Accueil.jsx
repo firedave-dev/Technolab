@@ -12,10 +12,38 @@ import {
 } from 'lucide-react';
 import Seo, { SCHEMA_ETABLISSEMENT } from '../../components/Seo.jsx';
 import Photo from '../../components/Photo.jsx';
+import Carrousel from '../../components/Carrousel.jsx';
+import Compteur from '../../components/Compteur.jsx';
 import Logo from '../../components/Logo.jsx';
 import {
   CHIFFRES, CYCLES, NOMBRE_PARCOURS, PARTENARIATS, POLES,
 } from '../../utils/formations.js';
+
+/**
+ * Vues du carrousel d'accueil : les ceremonies de remise de diplomes.
+ *
+ * C'est l'aboutissement du parcours, donc ce qu'un visiteur vient chercher. Les
+ * sorties et la vie etudiante ont leur propre section plus bas — les melanger
+ * ici brouillerait le propos du premier ecran.
+ */
+const PHOTOS_HERO = [
+  'remise-diplomes',
+  'diplomes-groupe',
+  'remise-certificat',
+  'ceremonie',
+  'diplomes-scene',
+  'remise-directeur',
+];
+
+/** Legendes affichees en surimpression, factuelles et non promotionnelles. */
+const LEGENDES_HERO = {
+  'remise-diplomes': 'Remise des diplômes',
+  'diplomes-groupe': 'Diplômées devant le mur des partenaires',
+  'remise-certificat': 'Remise d’un certificat de fin de cycle',
+  ceremonie: 'Cérémonie de remise des diplômes',
+  'diplomes-scene': 'Les diplômés sur scène',
+  'remise-directeur': 'Remise par la direction de l’institut',
+};
 
 /** Ce que la plateforme apporte concretement aux familles et aux equipes. */
 const SERVICES = [
@@ -47,14 +75,14 @@ const SERVICES = [
  */
 const VIE_ETUDIANTE = [
   {
-    photo: 'competition-debat',
-    titre: 'Compétitions inter-universitaires',
-    texte: 'Les étudiants représentent l’institut dans les tournois de débat entre universités.',
+    photo: 'dakar-plage',
+    titre: 'Séjours à l’étranger',
+    texte: 'Des voyages d’études hors du Mali, ici lors d’un séjour de promotion à Dakar.',
   },
   {
-    photo: 'diplomes-ghana',
-    titre: 'Ouverture internationale',
-    texte: 'Des séjours de formation à l’étranger, sanctionnés par un certificat.',
+    photo: 'lac-rose',
+    titre: 'Sorties de promotion',
+    texte: 'Des sorties qui soudent les promotions, ici lors d’une visite au lac Rose.',
   },
   {
     photo: 'salle-de-classe',
@@ -98,7 +126,7 @@ export default function Accueil() {
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
                 to="/formations"
-                className="inline-flex items-center gap-2 rounded-lg bg-ista px-5 py-3 text-sm font-medium text-white transition hover:bg-brand-700"
+                className="action-relief inline-flex items-center gap-2 rounded-lg bg-ista px-5 py-3 text-sm font-medium text-white hover:bg-brand-700"
               >
                 Découvrir les formations
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
@@ -106,7 +134,7 @@ export default function Accueil() {
 
               <Link
                 to="/admissions"
-                className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-5 py-3 text-sm font-medium text-marine transition hover:bg-slate-50"
+                className="action-relief-discret inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-5 py-3 text-sm font-medium text-marine hover:bg-slate-50"
               >
                 Admissions et tarifs
               </Link>
@@ -114,14 +142,13 @@ export default function Accueil() {
           </div>
 
           {/*
-            Seule image du premier écran : elle est chargée sans attendre, tout le
-            reste du site étant différé (voir components/Photo.jsx).
+            Premier écran : la première vue du carrousel est chargée sans
+            attendre, tout le reste du site étant différé (voir Photo.jsx).
           */}
-          <Photo
-            nom="remise-diplomes"
-            prioritaire
-            tailles="(min-width: 1024px) 460px, 100vw"
-            className="w-full rounded-2xl object-cover shadow-lg ring-1 ring-slate-900/5"
+          <Carrousel
+            photos={PHOTOS_HERO}
+            legendes={LEGENDES_HERO}
+            className="shadow-lg ring-1 ring-slate-900/5"
           />
         </div>
       </section>
@@ -133,13 +160,15 @@ export default function Accueil() {
             L’institut en chiffres
           </h2>
           <dl className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
-            {CHIFFRES.map(({ valeur, libelle }) => (
+            {CHIFFRES.map(({ nombre, suffixe, libelle }) => (
               <div key={libelle}>
                 <dt className="sr-only">{libelle}</dt>
                 <dd>
-                  <span className="block text-3xl font-bold tracking-tight text-white">
-                    {valeur}
-                  </span>
+                  <Compteur
+                    valeur={nombre}
+                    suffixe={suffixe}
+                    className="block text-3xl font-bold tabular-nums tracking-tight text-white"
+                  />
                   <span className="mt-1 block text-sm text-clair-sur-fonce">{libelle}</span>
                 </dd>
               </div>
@@ -227,7 +256,7 @@ export default function Accueil() {
           </div>
 
           <figure className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-900/5">
-            <Photo nom="ceremonie-diplomes" className="h-auto w-full object-cover" />
+            <Photo nom="ceremonie" className="h-auto w-full object-cover" />
             <figcaption className="px-5 py-3 text-sm text-slate-600">
               Cérémonie de remise des diplômes.
             </figcaption>
@@ -241,8 +270,8 @@ export default function Accueil() {
           La vie à l’institut
         </h2>
         <p className="mt-3 max-w-2xl text-slate-600">
-          Au-delà des cours, les promotions participent à des événements culturels, des
-          compétitions académiques et des séjours de formation.
+          Au-delà des cours, les promotions participent à des événements culturels
+          et à des séjours d’études, au Mali comme à l’étranger.
         </p>
 
         <figure className="mt-8 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-900/5">
@@ -310,7 +339,7 @@ export default function Accueil() {
 
             <Link
               to="/login"
-              className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-white px-6 py-3 text-sm font-bold text-marine transition hover:bg-slate-100"
+              className="action-relief-discret inline-flex shrink-0 items-center gap-2 rounded-lg bg-white px-6 py-3 text-sm font-bold text-marine hover:bg-slate-100"
             >
               Se connecter
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
