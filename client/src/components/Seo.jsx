@@ -41,7 +41,7 @@ export const IMAGE_PARTAGE = {
   alt: 'TechnoLAB-ISTA — Institut Supérieur de Technologies Appliquées, Sévaré, Mali',
 };
 
-export const ORIGINE = import.meta.env.VITE_SITE_URL || 'https://technolab-ista.org';
+export const ORIGINE = import.meta.env.VITE_SITE_URL || 'https://www.technolab-ista.org';
 
 export default function Seo({ titre, description, chemin = '/', schema, indexable = true }) {
   const titreComplet =

@@ -31,7 +31,7 @@
 export const NOM_COMPLET = 'Institut Supérieur de Technologies Appliquées';
 export const SIGLE = 'TechnoLAB - ISTA';
 export const ANNEE_FONDATION = 1998;
-export const SITE_OFFICIEL = 'https://technolab-ista.org';
+export const SITE_OFFICIEL = 'https://www.technolab-ista.org';
 
 /**
  * Identite administrative, telle qu'elle figure sur les documents officiels.

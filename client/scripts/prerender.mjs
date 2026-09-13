@@ -50,7 +50,7 @@ function lireEnv(nom) {
   return null;
 }
 
-const ORIGINE = (lireEnv('VITE_SITE_URL') || 'https://technolab-ista.org').replace(/\/+$/, '');
+const ORIGINE = (lireEnv('VITE_SITE_URL') || 'https://www.technolab-ista.org').replace(/\/+$/, '');
 
 if (!lireEnv('VITE_SITE_URL')) {
   console.warn('  ! VITE_SITE_URL absente : le plan de site utilisera l origine par defaut.');
