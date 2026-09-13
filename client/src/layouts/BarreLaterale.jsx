@@ -11,7 +11,7 @@
  */
 import { NavLink } from 'react-router-dom';
 import { X } from 'lucide-react';
-import { estDisponible, navigationGroupee } from '../router/navigation.js';
+import { navigationGroupee } from '../router/navigation.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import Logo from '../components/Logo.jsx';
 
@@ -45,7 +45,7 @@ export default function BarreLaterale({ ouverte, onFermer }) {
             )}
 
             <ul className="space-y-0.5">
-              {groupe.entrees.map(({ chemin, libelle, icone: Icone, phase }) => (
+              {groupe.entrees.map(({ chemin, libelle, icone: Icone }) => (
                 <li key={chemin}>
                   <NavLink
                     to={chemin}
@@ -72,12 +72,6 @@ export default function BarreLaterale({ ouverte, onFermer }) {
                         <Icone className="h-4 w-4 shrink-0" aria-hidden="true" />
                         <span className="flex-1 truncate">{libelle}</span>
 
-                        {/* Reperage des modules pas encore livres */}
-                        {!estDisponible({ phase }) && (
-                          <span className="rounded bg-white/15 px-1.5 py-0.5 text-[10px] font-medium">
-                            P{phase}
-                          </span>
-                        )}
                       </>
                     )}
                   </NavLink>

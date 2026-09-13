@@ -5,6 +5,9 @@ import userRoutes from './user.routes.js';
 import studentRoutes from './student.routes.js';
 import classeRoutes from './classe.routes.js';
 import { bulletinRouter, evaluationRouter, matiereRouter } from './scolarite.routes.js';
+import publicRoutes from './public.routes.js';
+import ueRoutes from './ue.routes.js';
+import noteRoutes from './note.routes.js';
 import examenRoutes from './examen.routes.js';
 import absenceRoutes from './absence.routes.js';
 import notificationRoutes from './notification.routes.js';
@@ -17,12 +20,17 @@ router.get('/health', (req, res) =>
   res.json({ success: true, service: 'Technolab ISTA API', date: new Date().toISOString() })
 );
 
+// Documents publics : aucune authentification, volontairement.
+router.use('/public', publicRoutes);
+
 router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
 router.use('/etudiants', studentRoutes);
 router.use('/classes', classeRoutes);
 router.use('/matieres', matiereRouter);
-router.use('/evaluations', evaluationRouter);
+router.use('/ue', ueRoutes);
+router.use('/notes', noteRoutes);
+ router.use('/evaluations', evaluationRouter);
 router.use('/bulletins', bulletinRouter);
 router.use('/examens', examenRoutes);
 router.use('/absences', absenceRoutes);

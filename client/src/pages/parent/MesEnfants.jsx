@@ -41,7 +41,7 @@ export default function MesEnfants() {
           {enfants.map((enfant) => (
             <Link
               key={enfant.id}
-              to={`/etudiants/${enfant.id}`}
+              to={`/mes-enfants/${enfant.id}`}
               className="carte group flex items-center gap-3 p-4 transition hover:border-brand-300 hover:shadow"
             >
               <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-600 text-sm font-semibold text-white">

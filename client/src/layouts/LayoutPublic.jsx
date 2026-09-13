@@ -14,6 +14,7 @@ import { Link, NavLink, Outlet } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import Logo from '../components/Logo.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
+import { IDENTITE, RESEAUX, SIGLE } from '../utils/formations.js';
 
 const LIENS = [
   { chemin: '/', libelle: 'Accueil' },
@@ -111,17 +112,78 @@ export default function LayoutPublic() {
 
       <footer className="sur-marine bg-marine">
         <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
-          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="lg:col-span-2">
-              <Logo variante="marine" hauteur={40} className="rounded" />
-              <p className="mt-4 max-w-sm text-sm text-clair-sur-fonce">
-                Institut Supérieur de Technologies Appliquées — établissement privé
-                d’enseignement supérieur, formant aux métiers de la gestion, de
-                l’informatique et des technologies appliquées.
+          <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
+            {/* --- Identite --- */}
+            <div className="lg:col-span-1">
+              <Logo variante="marine" hauteur={40} />
+              <p className="mt-4 max-w-sm text-sm leading-relaxed text-clair-sur-fonce">
+                Institut supérieur privé agréé, formant du DUT au master en sciences de
+                gestion, technologies et ingénierie.
               </p>
             </div>
 
-            <nav aria-label="Pages du site">
+            {/* --- Contact --- */}
+            <div>
+              <h2 className="libelle-capitales text-[10px] text-clair-sur-fonce/70">Contact</h2>
+              <address className="mt-3 space-y-2 text-sm not-italic text-clair-sur-fonce">
+                <p>{IDENTITE.boitePostale}</p>
+                <p className="text-clair-sur-fonce/80">
+                  Enseignement à {IDENTITE.siteEnseignement}
+                </p>
+
+                {/*
+                  Les numeros sont cliquables : sur un telephone, c'est la
+                  difference entre appeler et recopier a la main. `tel:` n'admet
+                  ni espace ni separateur, d'ou le nettoyage de l'attribut.
+                */}
+                <p className="flex flex-wrap gap-x-2">
+                  {IDENTITE.telephones.map((numero, rang) => (
+                    <span key={numero}>
+                      <a
+                        href={`tel:${numero.replace(/\s/g, '')}`}
+                        className="transition hover:text-white hover:underline"
+                      >
+                        {numero}
+                      </a>
+                      {rang < IDENTITE.telephones.length - 1 && (
+                        <span className="text-clair-sur-fonce/50"> /</span>
+                      )}
+                    </span>
+                  ))}
+                </p>
+
+                <p>
+                  <a
+                    href={`mailto:${IDENTITE.email}`}
+                    className="transition hover:text-white hover:underline"
+                  >
+                    {IDENTITE.email}
+                  </a>
+                </p>
+              </address>
+            </div>
+
+            {/* --- Mentions legales --- */}
+            <div>
+              <h2 className="libelle-capitales text-[10px] text-clair-sur-fonce/70">
+                Mentions légales
+              </h2>
+              <dl className="mt-3 space-y-2 text-sm text-clair-sur-fonce">
+                {[
+                  ['Agrément', IDENTITE.agrement],
+                  ['Registre du commerce', IDENTITE.registreCommerce],
+                  ['N° DNI', IDENTITE.numeroDni],
+                ].map(([libelle, valeur]) => (
+                  <div key={libelle}>
+                    <dt className="text-clair-sur-fonce/70">{libelle}</dt>
+                    <dd className="font-medium text-white">{valeur}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+
+            {/* --- Navigation --- */}
+            <div>
               <h2 className="libelle-capitales text-[10px] text-clair-sur-fonce/70">Navigation</h2>
               <ul className="mt-3 space-y-2">
                 {LIENS.map(({ chemin, libelle }) => (
@@ -131,30 +193,50 @@ export default function LayoutPublic() {
                     </Link>
                   </li>
                 ))}
+                <li className="pt-2">
+                  <Link to="/login" className="text-sm text-clair-sur-fonce transition hover:text-white">
+                    Espace étudiants et familles
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/login" className="text-sm text-clair-sur-fonce transition hover:text-white">
+                    Espace personnel
+                  </Link>
+                </li>
               </ul>
-            </nav>
 
-            <div>
-              <h2 className="libelle-capitales text-[10px] text-clair-sur-fonce/70">Espace prive</h2>
-              <ul className="mt-3 space-y-2">
-                <li>
-                  <Link to="/login" className="text-sm text-clair-sur-fonce transition hover:text-white">
-                    Étudiants et parents
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/login" className="text-sm text-clair-sur-fonce transition hover:text-white">
-                    Personnel
-                  </Link>
-                </li>
+              {/*
+                Profils officiels. `rel="me"` declare que ces comptes appartiennent
+                a la meme entite que le site — c'est la contrepartie visible du
+                `sameAs` des donnees structurees. `noopener` est de rigueur sur
+                toute ouverture dans un nouvel onglet.
+              */}
+              <h2 className="libelle-capitales mt-6 text-[10px] text-clair-sur-fonce/70">
+                Suivez-nous
+              </h2>
+              <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-2">
+                {RESEAUX.map(({ nom, url }) => (
+                  <li key={nom}>
+                    <a
+                      href={url}
+                      rel="me noopener noreferrer"
+                      target="_blank"
+                      className="text-sm text-clair-sur-fonce transition hover:text-white hover:underline"
+                    >
+                      {nom}
+                    </a>
+                  </li>
+                ))}
               </ul>
             </div>
           </div>
 
-          <div className="mt-10 border-t border-white/10 pt-6">
-            <p className="libelle-capitales text-[10px] text-clair-sur-fonce/70">Établissement privé d’enseignement supérieur</p>
-            <p className="mt-1 text-xs text-clair-sur-fonce">
-              &copy; {new Date().getFullYear()} Technolab ISTA — Tous droits réservés
+          <div className="mt-10 flex flex-wrap items-center justify-between gap-4 border-t border-white/10 pt-6">
+            <p className="text-xs text-clair-sur-fonce">
+              &copy; {new Date().getFullYear()} {SIGLE} — Tous droits réservés
+            </p>
+            <p className="libelle-capitales text-[10px] text-clair-sur-fonce/70">
+              Institut supérieur privé agréé
             </p>
           </div>
         </div>

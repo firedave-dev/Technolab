@@ -17,9 +17,10 @@
  * transporte pas le code des autres.
  */
 import { Suspense, lazy } from 'react';
-import { Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes } from 'react-router-dom';
 import RouteProtegee, { RoutePublique } from './router/RouteProtegee.jsx';
 import { ACCUEIL_PRIVE, NAVIGATION } from './router/navigation.js';
+import { DOSSIER_ROLES, ROLES } from './utils/roles.js';
 import Chargement from './components/ui/Chargement.jsx';
 import LayoutPublic from './layouts/LayoutPublic.jsx';
 import LayoutAuth from './layouts/LayoutAuth.jsx';
@@ -45,6 +46,7 @@ const Profil = lazy(() => import('./pages/Profil.jsx'));
 const EnConstruction = lazy(() => import('./pages/EnConstruction.jsx'));
 const DossierEtudiant = lazy(() => import('./pages/etudiants/DossierEtudiant.jsx'));
 const BulletinEtudiant = lazy(() => import('./pages/notes/BulletinEtudiant.jsx'));
+const SyntheseEnfant = lazy(() => import('./pages/parent/SyntheseEnfant.jsx'));
 
 /** Ecrans livres, associes a leur chemin de navigation. */
 const ECRANS = {
@@ -54,8 +56,9 @@ const ECRANS = {
   '/personnel': lazy(() => import('./pages/Personnel.jsx')),
   '/mes-enfants': lazy(() => import('./pages/parent/MesEnfants.jsx')),
   '/matieres': lazy(() => import('./pages/matieres/ListeMatieres.jsx')),
+  '/unites-enseignement': lazy(() => import('./pages/ue/CompositionUE.jsx')),
   '/notes': lazy(() => import('./pages/notes/Notes.jsx')),
-  '/examens': lazy(() => import('./pages/examens/ListeExamens.jsx')),
+  '/evaluation': lazy(() => import('./pages/examens/ListeExamens.jsx')),
   '/absences': lazy(() => import('./pages/absences/Absences.jsx')),
   '/paiements': lazy(() => import('./pages/paiements/Paiements.jsx')),
   '/planning': lazy(() => import('./pages/planning/Planning.jsx')),
@@ -94,6 +97,14 @@ export default function App() {
           <Route element={<LayoutApplication />}>
             <Route path={ACCUEIL_PRIVE} element={<TableauDeBord />} />
             <Route path="/profil" element={<Profil />} />
+
+            {/*
+              Ancienne adresse du module. Un favori ou un lien envoye par
+              courriel ne doit pas tomber sur une page 404 : on redirige, avec
+              `replace` pour ne pas pieger le bouton « precedent » du navigateur
+              dans un aller-retour.
+            */}
+            <Route path="/examens" element={<Navigate to="/evaluation" replace />} />
             <Route path="/non-autorise" element={<NonAutorise />} />
 
             {/* Une route par module, restreinte aux roles declares dans NAVIGATION */}
@@ -106,21 +117,34 @@ export default function App() {
               );
             })}
 
-            {/* Bulletin d'un etudiant precis : ouvert depuis le releve de classe
-                ou le dossier etudiant. Le serveur verifie le droit de consultation. */}
-            <Route
-              element={<RouteProtegee roles={NAVIGATION.find((n) => n.chemin === '/notes').roles} />}
-            >
+            {/*
+              Bulletin individuel et dossier etudiant.
+
+              Les deux exposent des donnees qui DEPASSENT le perimetre d'un
+              enseignant : un bulletin porte les notes de toutes les matieres,
+              un dossier porte les coordonnees de la famille et sa situation
+              financiere. Le professeur en est donc exclu — et la liste est
+              ecrite ici plutot que deduite de NAVIGATION, dont les entrees
+              « Notes » et « Etudiants » lui restent ouvertes.
+
+              Le serveur applique la meme regle et repond 403 : ce garde-fou ne
+              fait qu'eviter d'afficher un ecran d'erreur.
+            */}
+            <Route element={<RouteProtegee roles={DOSSIER_ROLES} />}>
               <Route path="/notes/bulletin/:id" element={<BulletinEtudiant />} />
             </Route>
 
-            {/* Dossier etudiant : accessible aussi aux parents et a l'etudiant concerne,
-                le serveur verifie le lien exact. */}
-            <Route
-              element={
-                <RouteProtegee roles={NAVIGATION.find((n) => n.chemin === '/etudiants').roles.concat(['etudiant', 'parent'])} />
-              }
-            >
+            {/*
+              Synthese d'un enfant, reservee au parent : une page deroulante
+              unique plutot qu'un dossier a onglets. Le serveur verifie le lien
+              de parente exact a chaque appel ; cette garde n'evite qu'un ecran
+              d'erreur a qui se tromperait d'URL.
+            */}
+            <Route element={<RouteProtegee roles={[ROLES.PARENT]} />}>
+              <Route path="/mes-enfants/:id" element={<SyntheseEnfant />} />
+            </Route>
+
+            <Route element={<RouteProtegee roles={[...DOSSIER_ROLES, ROLES.ETUDIANT, ROLES.PARENT]} />}>
               <Route path="/etudiants/:id" element={<DossierEtudiant />} />
             </Route>
           </Route>

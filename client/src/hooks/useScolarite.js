@@ -13,6 +13,7 @@ import {
   matieresApi,
   notificationsApi,
 } from '../api/scolarite.api.js';
+import { documentsPublicsApi, notesApi, ueApi } from '../api/ue.api.js';
 import { messageErreur } from '../api/client.js';
 
 function useMutationScolarite(fn, { invalider = [] } = {}) {
@@ -27,6 +28,83 @@ function useMutationScolarite(fn, { invalider = [] } = {}) {
     onError: (error) => toast.error(messageErreur(error)),
   });
 }
+
+// --- Unites d'Enseignement ---
+
+/**
+ * La nomenclature change rarement : on la garde en cache une heure plutot que
+ * de la redemander a chaque ouverture d'un formulaire de matiere.
+ */
+export const useTypesMatiere = (actif = true) =>
+  useQuery({
+    queryKey: ['types-matiere'],
+    queryFn: ueApi.types,
+    enabled: actif,
+    staleTime: 60 * 60 * 1000,
+  });
+
+export const useEtatSemestre = (params, actif = true) =>
+  useQuery({
+    queryKey: ['ue-etat', params],
+    queryFn: () => ueApi.etat(params),
+    enabled: actif && Boolean(params?.classe),
+  });
+
+export const usePropositionUE = (params, actif = true) =>
+  useQuery({
+    queryKey: ['ue-proposition', params],
+    queryFn: () => ueApi.proposition(params),
+    enabled: actif && Boolean(params?.classe),
+  });
+
+export const useUE = (params, actif = true) =>
+  useQuery({
+    queryKey: ['ue', params],
+    queryFn: () => ueApi.lister(params),
+    enabled: actif && Boolean(params?.classe),
+  });
+
+export const useAppliquerUE = () =>
+  useMutationScolarite(ueApi.appliquer, { invalider: ['ue', 'ue-etat', 'ue-proposition', 'matieres'] });
+
+export const useEchangerMatieres = () =>
+  useMutationScolarite(
+    ({ matiereA, matiereB }) => ueApi.echanger(matiereA, matiereB),
+    { invalider: ['ue', 'ue-proposition', 'matieres'] }
+  );
+
+/**
+ * Documents publics telechargeables.
+ *
+ * Interroge sans authentification. Le resultat conditionne l'affichage du
+ * bouton : un lien de telechargement qui echoue fait croire a une panne.
+ */
+export const useDocumentsPublics = () =>
+  useQuery({
+    queryKey: ['documents-publics'],
+    queryFn: documentsPublicsApi.lister,
+    staleTime: 60 * 60 * 1000,
+    // Une page publique doit s'afficher meme si l'API est injoignable.
+    retry: false,
+  });
+
+// --- Saisie des notes de matiere ---
+
+export const useMesEnseignements = (actif = true) =>
+  useQuery({ queryKey: ['mes-enseignements'], queryFn: notesApi.mesEnseignements, enabled: actif });
+
+export const useGrilleMatiere = (params, actif = true) =>
+  useQuery({
+    queryKey: ['grille-matiere', params],
+    queryFn: () => notesApi.grille(params),
+    enabled: actif && Boolean(params?.matiere),
+  });
+
+export const useEnregistrerGrille = () =>
+  useMutationScolarite(notesApi.enregistrer, { invalider: ['grille-matiere', 'bulletin', 'releve'] });
+
+export const usePublierGrille = () =>
+  useMutationScolarite(notesApi.publier, { invalider: ['grille-matiere', 'bulletin', 'releve'] });
 
 // --- Matieres ---
 

@@ -5,9 +5,9 @@
  * mise en forme correspondante.
  */
 import { Link } from 'react-router-dom';
-import { ArrowRight, Lock } from 'lucide-react';
+import { ArrowRight} from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
-import { PHASE_ACTUELLE, estDisponible, navigationPourRole } from '../router/navigation.js';
+import { navigationPourRole } from '../router/navigation.js';
 import { useMonTableau } from '../hooks/usePlanning.js';
 import BadgeRole from '../components/ui/BadgeRole.jsx';
 import EtatVide from '../components/ui/EtatVide.jsx';
@@ -24,14 +24,6 @@ const dateDuJour = () =>
     year: 'numeric',
   });
 
-const PHASES = [
-  ['Phase 1', 'Authentification, roles et permissions'],
-  ['Phase 2', 'Utilisateurs, personnel, etudiants et parents'],
-  ['Phase 3', 'Notes, examens et absences'],
-  ['Phase 4', 'Comptabilite, paiements et recus PDF'],
-  ['Phase 5', 'Planning et statistiques'],
-  ['Phase 6', 'Finitions, tests et corrections'],
-];
 
 /** Choisit la vue correspondant au role, a partir de la charge utile recue. */
 function VuePourRole({ role, tableau }) {
@@ -90,8 +82,7 @@ export default function TableauDeBord() {
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {modules.map((module) => {
-            const { chemin, libelle, icone: Icone, phase } = module;
-            const disponible = estDisponible(module);
+            const { chemin, libelle, icone: Icone } = module;
 
             return (
               <Link
@@ -108,16 +99,7 @@ export default function TableauDeBord() {
                     {libelle}
                     <ArrowRight className="h-3.5 w-3.5 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-ista" />
                   </span>
-                  <span className="mt-1 flex items-center gap-1 text-xs text-slate-500">
-                    {disponible ? (
-                      'Disponible'
-                    ) : (
-                      <>
-                        <Lock className="h-3 w-3" aria-hidden="true" />
-                        Livre en phase {phase}
-                      </>
-                    )}
-                  </span>
+                  <span className="mt-1 block text-xs text-slate-500">Ouvrir le module</span>
                 </span>
               </Link>
             );
@@ -125,26 +107,6 @@ export default function TableauDeBord() {
         </div>
       </section>
 
-      {/* Etat d'avancement du projet */}
-      <section className="carte p-6">
-        <h2 className="titre-carte">Avancement de la plateforme</h2>
-        <ul className="mt-4 space-y-2.5 text-sm">
-          {PHASES.map(([phase, description], index) => {
-            const faite = index + 1 <= PHASE_ACTUELLE;
-            return (
-              <li key={phase} className="flex items-center gap-3">
-                <span
-                  className={`h-2 w-2 shrink-0 rounded-full ${faite ? 'bg-succes' : 'bg-slate-300'}`}
-                  aria-hidden="true"
-                />
-                <span className={faite ? 'text-slate-700' : 'text-slate-400'}>
-                  <span className="font-bold text-marine">{phase}</span> — {description}
-                </span>
-              </li>
-            );
-          })}
-        </ul>
-      </section>
     </div>
   );
 }

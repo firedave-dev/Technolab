@@ -1,7 +1,7 @@
 /** En-tete : titre de la page courante, menu utilisateur et deconnexion. */
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { ChevronDown, LogOut, Menu, User } from 'lucide-react';
+import { ChevronDown, Home, LogOut, Menu, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
 import { NAVIGATION } from '../router/navigation.js';
 import { initiales } from '../utils/roles.js';
@@ -44,6 +44,22 @@ export default function BarreSuperieure({ onOuvrirMenu }) {
 
       <h1 className="hidden flex-1 truncate text-base font-semibold text-marine lg:block">{titre}</h1>
       <span className="flex-1 lg:hidden" />
+
+      {/*
+        Retour au site public. Le lien SORT de l'espace prive sans deconnecter :
+        c'est une navigation, pas une fin de session. Le libelle disparait sur
+        petit ecran, ou la place manque, mais l'icone reste — accompagnee de son
+        intitule accessible.
+      */}
+      <Link
+        to="/"
+        className="action-relief-discret flex items-center gap-2 rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm font-medium text-marine hover:bg-slate-50 sm:px-3"
+        title="Retour au site public"
+      >
+        <Home className="h-4 w-4" aria-hidden="true" />
+        <span className="hidden sm:inline">Accueil</span>
+        <span className="sr-only sm:hidden">Retour au site public</span>
+      </Link>
 
       <ClocheNotifications />
 
