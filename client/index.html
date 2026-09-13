@@ -4,18 +4,27 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    <title>Technolab ISTA - Gestion scolaire</title>
-    <meta name="description" content="Plateforme de gestion scolaire de l'universite privee Technolab ISTA" />
+    <title>TechnoLAB-ISTA — Institut Supérieur de Technologies Appliquées, Sévaré</title>
+    <!--
+      Repli servi aux routes non pre-rendues. Les pages publiques portent leurs
+      propres balises, posees par components/Seo.jsx : celles-ci ne s'appliquent
+      qu'a l'espace prive, qui n'est de toute facon pas indexe.
+    -->
+    <meta
+      name="description"
+      content="TechnoLAB-ISTA, institut supérieur privé agréé à Sévaré (Mopti, Mali) : DUT, licence et master en gestion, technologies et sciences de l’ingénieur. Diplômes reconnus CAMES."
+    />
 
     <!-- Couleur de la barre systeme sur mobile : marine de la charte -->
-    <meta name="theme-color" content="#0B2E52" />
+    <meta name="theme-color" content="#2E4474" />
 
     <!--
-      Icone de marque. Le SVG est servi en premier : net a toute taille et sur tout
-      ecran. Les PNG restent declares en repli pour les navigateurs sans favicon
-      vectoriel, et pour l'ecran d'accueil iOS qui n'accepte que du bitmap.
+      Icone de marque, declinee du blason officiel par client/scripts/preparer-logo.py.
+      Aucune version vectorielle n'est declaree : le logo fourni est un bitmap de
+      263 px, et vectoriser automatiquement une banderole portant du micro-texte
+      produirait une bouillie plutot qu'un trace propre. Les tailles ci-dessous
+      sont toutes servies en PNG, ce que tous les navigateurs acceptent.
     -->
-    <link rel="icon" type="image/svg+xml" href="/marque/icone-marine.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/marque/icone-32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="/marque/icone-16.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/marque/icone-180.png" />

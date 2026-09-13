@@ -7,3 +7,9 @@ build/
 npm-debug.log*
 .DS_Store
 coverage/
+
+# Exports de base produits par les migrations : donnees reelles, jamais versionnees.
+server/sauvegardes/
+
+# Apercus d'emails generes localement.
+server/apercus/

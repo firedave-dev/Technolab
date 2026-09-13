@@ -51,11 +51,42 @@
 }
 
 @theme {
-  /* --- Couleurs de charte --- */
-  --color-marine: #0b2e52;
-  --color-ista: #1f6fe0;
-  /* Nomme explicitement : ce bleu ne doit apparaitre que sur un fond fonce. */
-  --color-clair-sur-fonce: #7fb6f7;
+  /*
+   * --- Couleurs de charte ---
+   *
+   * Degrade officiel de l'etablissement, du vert au bleu :
+   *   #038129  vert        marque, actions, validation
+   *   #156749  vert-bleu   transition du degrade
+   *   #2E4474  bleu        autorite : navigation, en-tetes de documents
+   *   #3A598B  ardoise     etats secondaires, fonds
+   *
+   * Les NOMS de tokens sont inchanges, seules les VALEURS le sont. C'est
+   * deliberé : `marine`, `ista` et `clair-sur-fonce` sont cites 189 fois dans
+   * une quarantaine de composants, et ils restent exacts — `marine` designe
+   * toujours le bleu d'autorite, `ista` la couleur signature de l'ecole,
+   * `clair-sur-fonce` est purement fonctionnel. Reecrire ces 189 appels pour
+   * changer de charte aurait ete du travail sans contrepartie, et autant
+   * d'occasions de fautes de frappe.
+   *
+   * Les quatre couleurs passent le seuil AA pour du texte sur blanc
+   * (5,03 / 6,84 / 9,57 / 7,04) — l'ancienne charte imposait au contraire de
+   * bannir son bleu clair des fonds clairs.
+   */
+  --color-marine: #2e4474;
+  --color-ista: #038129;
+  --color-vert-bleu: #156749;
+  --color-ardoise: #3a598b;
+
+  /*
+   * Texte clair sur le bleu d'autorite : 5,97:1, donc lisible pour du corps de
+   * texte. Le vert de marque, lui, n'y atteint que 1,90 — il ne doit jamais
+   * servir de texte sur ce fond.
+   */
+  --color-clair-sur-fonce: #c4cddc;
+
+  /* Degrade de marque, pour les grandes surfaces uniquement (hero, en-tetes). */
+  --color-degrade-depart: #038129;
+  --color-degrade-arrivee: #2e4474;
 
   /*
    * Couleurs semantiques d'etat. Pas -700 : tous conformes AA sur blanc
@@ -69,27 +100,33 @@
   --color-retard-fond: #fef2f2;
 
   /*
-   * Rampe applicative, derivee du bleu d'action.
-   * Les composants s'appuient sur `brand-*` : les remapper ici propage la charte
-   * a toute l'application. brand-600 EST le bleu ISTA ; brand-900 EST le marine.
+   * Rampe applicative. Les composants s'appuient sur `brand-*` : la remapper
+   * ici propage la charte a toute l'application.
+   *
+   * Elle ENCODE le degrade officiel plutot que de decliner une seule teinte :
+   * les pas clairs sont des dilutions du vert de marque, puis la rampe glisse
+   * vers le vert-bleu (800) et le bleu d'autorite (900). Parcourir brand-600 ->
+   * 800 -> 900, c'est parcourir le degrade de l'etablissement.
+   *
+   * Contrastes sur blanc : 600 = 5,03 (AA texte), 700 = 6,80, 900 = 9,57.
    */
-  --color-brand-50: #eff6ff;
-  --color-brand-100: #dbeafe;
-  --color-brand-200: #bfdbfe;
-  --color-brand-300: #93c5fd;
-  --color-brand-400: #7fb6f7;
-  --color-brand-500: #4a8ce8;
-  --color-brand-600: #1f6fe0;
-  --color-brand-700: #1a5cbc;
-  --color-brand-800: #164a97;
-  --color-brand-900: #0b2e52;
+  --color-brand-50: #f2f9f4;
+  --color-brand-100: #e1f0e5;
+  --color-brand-200: #c3e1cc;
+  --color-brand-300: #95caa5;
+  --color-brand-400: #59ac72;
+  --color-brand-500: #2b954b;
+  --color-brand-600: #038129;
+  --color-brand-700: #026a22;
+  --color-brand-800: #156749;
+  --color-brand-900: #2e4474;
 
   /* --- Typographie --- */
   --font-sans: 'Archivo', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
 
   /* --- Elevation : deux niveaux seulement, pour rester sobre --- */
-  --shadow-carte: 0 1px 2px 0 rgb(11 46 82 / 0.04), 0 1px 3px 0 rgb(11 46 82 / 0.06);
-  --shadow-carte-survol: 0 4px 12px -2px rgb(11 46 82 / 0.10), 0 2px 6px -2px rgb(11 46 82 / 0.06);
+  --shadow-carte: 0 1px 2px 0 rgb(46 68 116 / 0.04), 0 1px 3px 0 rgb(46 68 116 / 0.06);
+  --shadow-carte-survol: 0 4px 12px -2px rgb(46 68 116 / 0.10), 0 2px 6px -2px rgb(46 68 116 / 0.06);
 }
 
 @layer base {
@@ -207,10 +244,16 @@
 
   /* Le mouvement est retire pour qui a demande a en voir moins. */
   @media (prefers-reduced-motion: reduce) {
-    .carte-interactive {
+    .carte-interactive,
+    .action-relief,
+    .action-relief-discret {
       @apply transition-none;
     }
-    .carte-interactive:hover {
+    .carte-interactive:hover,
+    .action-relief:hover,
+    .action-relief-discret:hover,
+    .action-relief:active,
+    .action-relief-discret:active {
       transform: none;
     }
   }
