@@ -26,6 +26,40 @@ export const STAFF_ROLES = [
 /** Roles ayant une vision globale de l'etablissement. */
 export const ADMIN_ROLES = [ROLES.ADMIN, ROLES.DIRECTEUR];
 
+/**
+ * Personnel habilite a consulter le DOSSIER d'un etudiant : bulletin complet,
+ * fiche individuelle, coordonnees de la famille.
+ *
+ * LE PROFESSEUR EN EST EXCLU, et c'est le point de la regle. Un bulletin porte
+ * les notes de TOUTES les matieres, une fiche individuelle porte l'adresse, la
+ * situation familiale et la situation financiere : rien de tout cela ne concerne
+ * l'enseignant d'une matiere. Il accede a la liste de ses classes et saisit ses
+ * propres notes, pas davantage.
+ *
+ * La distinction est portee ici plutot que repetee dans chaque routeur : une
+ * liste de roles recopiee finit toujours par diverger d'un fichier a l'autre.
+ */
+export const DOSSIER_ROLES = [
+  ROLES.ADMIN,
+  ROLES.DIRECTEUR,
+  ROLES.SECRETAIRE,
+  ROLES.SURVEILLANT,
+];
+
+/**
+ * Personnel habilite a administrer l'OFFRE DE FORMATION : classes, matieres et
+ * leur regroupement en unites d'enseignement.
+ *
+ * Le SECRETARIAT en est exclu — il gere les inscriptions, les dossiers et la
+ * caisse, pas la structure pedagogique. Le SURVEILLANT y figure : c'est lui qui
+ * tient les classes et les matieres au quotidien.
+ *
+ * Les UE relevent du meme groupe que les matieres dont elles sont faites :
+ * separer les deux permettrait de creer une matiere sans pouvoir la rattacher,
+ * ce qui laisserait la structure a moitie construite.
+ */
+export const PEDAGOGIE_ROLES = [ROLES.ADMIN, ROLES.DIRECTEUR, ROLES.SURVEILLANT];
+
 /** Libelles affichables (utilises dans les reponses API et l'UI). */
 export const ROLE_LABELS = {
   [ROLES.ADMIN]: 'Administrateur',

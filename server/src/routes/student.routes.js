@@ -2,7 +2,7 @@
 import { Router } from 'express';
 import { protect, restrictTo } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
-import { ADMIN_ROLES, ROLES, STAFF_ROLES } from '../config/roles.js';
+import { ADMIN_ROLES, DOSSIER_ROLES, ROLES, STAFF_ROLES } from '../config/roles.js';
 import * as ctrl from '../controllers/student.controller.js';
 import {
   affecterClasseSchema,
@@ -27,7 +27,7 @@ router.get('/', restrictTo(...CONSULTATION), validate({ query: listeQuerySchema 
 // Un etudiant ou un parent peut ouvrir ce dossier : le controleur verifie le lien.
 router.get(
   '/:id',
-  restrictTo(...STAFF_ROLES, ROLES.ETUDIANT, ROLES.PARENT),
+  restrictTo(...DOSSIER_ROLES, ROLES.ETUDIANT, ROLES.PARENT),
   validate({ params: idParamSchema }),
   ctrl.dossier
 );

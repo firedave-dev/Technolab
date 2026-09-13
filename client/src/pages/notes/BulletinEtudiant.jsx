@@ -27,28 +27,17 @@ import { ROLES } from '../../utils/roles.js';
 import { PERIODES, libellePeriode } from '../../utils/scolarite.js';
 
 /**
- * Les deux groupes d'evaluation du bulletin, chacun suivi de sa moyenne.
+ * Note affichee sur le document.
  *
- * Le decoupage reprend celui du calcul serveur (scolarite.service.js) : le lecteur
- * doit pouvoir refaire l'operation a la main depuis le document. Afficher les notes
- * sans la moyenne du groupe, ou l'inverse, rendrait la moyenne finale invérifiable.
+ * La virgule remplace le point : c'est la convention francaise, et le bulletin
+ * est un document officiel. Deux decimales toujours, meme sur un entier — une
+ * colonne de nombres alignes se compare d'un coup d'oeil, ce qui n'est pas le
+ * cas si « 12 » cotoie « 9,33 ».
  */
-const GROUPES = [
-  {
-    cle: 'classe',
-    titre: 'Travaux de classe',
-    abrege: 'Moy. classe',
-    types: ['devoir', 'interrogation', 'tp', 'projet'],
-    champ: 'moyenneClasse',
-  },
-  {
-    cle: 'examen',
-    titre: 'Examens',
-    abrege: 'Moy. examen',
-    types: ['examen'],
-    champ: 'moyenneExamen',
-  },
-];
+const formaterNote = (valeur) =>
+  valeur === null || valeur === undefined
+    ? '—'
+    : valeur.toFixed(2).replace('.', ',');
 
 /** Couleur d'une moyenne : vert au-dessus de la moyenne, ambre puis rouge en dessous. */
 function tonMoyenne(moyenne) {
@@ -204,13 +193,20 @@ export default function BulletinEtudiant() {
             <p className="mt-0.5 text-sm text-slate-600">
               {b.classe.nom} · {b.classe.filiere}
             </p>
+            {/*
+              Le libelle est ecrit en toutes lettres, comme sur le bulletin
+              officiel de l'etablissement : un numero seul en petits caracteres
+              ne se rattache a rien pour qui lit le document imprime.
+            */}
             {b.etudiant.matricule && (
-              <p className="mt-0.5 font-mono text-xs text-slate-500">{b.etudiant.matricule}</p>
+              <p className="mt-0.5 text-xs text-slate-500">
+                Matricule : <span className="font-mono text-slate-700">{b.etudiant.matricule}</span>
+              </p>
             )}
           </div>
         </header>
 
-        {/* Synthese : les quatre chiffres qui resument l'annee */}
+        {/* Synthese : les quatre chiffres qui resument le semestre */}
         <section className="grid gap-3 border-b border-slate-200 bg-slate-50 px-8 py-5 sm:grid-cols-2 lg:grid-cols-4">
           <Synthese
             libelle="Moyenne generale"
@@ -219,12 +215,24 @@ export default function BulletinEtudiant() {
             ton={tonMoyenne(b.moyenneGenerale)}
           />
           <Synthese
+            libelle="Credits valides"
+            valeur={`${b.creditsAcquis ?? 0}/${b.creditsTotal ?? 0}`}
+            detail={
+              b.creditsTotal
+                ? `${Math.round(((b.creditsAcquis ?? 0) / b.creditsTotal) * 100)} % de l unite`
+                : undefined
+            }
+            ton={
+              b.creditsTotal && b.creditsAcquis === b.creditsTotal ? 'text-succes' : 'text-marine'
+            }
+          />
+          <Synthese
             libelle="Rang"
             valeur={b.rang ? `${b.rang}e` : '—'}
             detail={b.effectif ? `sur ${b.effectif} etudiants` : undefined}
           />
           <Synthese
-            libelle="Moyenne de la classe"
+            libelle="Moyenne de la promotion"
             valeur={b.moyenneGeneraleClasse === null ? '—' : `${b.moyenneGeneraleClasse}/20`}
             detail={
               b.moyenneGenerale !== null && b.moyenneGeneraleClasse !== null
@@ -232,15 +240,10 @@ export default function BulletinEtudiant() {
                 : undefined
             }
           />
-          <Synthese
-            libelle="Matieres evaluees"
-            valeur={b.matieres.filter((m) => m.moyenne !== null).length}
-            detail={`sur ${b.matieres.length} au programme`}
-          />
         </section>
 
-        {/* Grille des matieres */}
-        {b.matieres.length ? (
+        {/* Grille par unite d'enseignement */}
+        {b.ues?.length ? (
           <div className="overflow-x-auto">
             {/*
               Largeur minimale calee sur le PAPIER, pas sur l'ecran : un A4 paysage
@@ -251,143 +254,141 @@ export default function BulletinEtudiant() {
             <table className="w-full min-w-[1040px] border-collapse text-sm">
               <thead>
                 <tr className="border-b border-slate-300 bg-white text-left">
-                  <th scope="col" className="px-8 py-3 text-[10px] font-bold uppercase tracking-wide text-slate-500">
-                    Matiere
-                  </th>
-                  <th scope="col" className="px-3 py-3 text-center text-[10px] font-bold uppercase tracking-wide text-slate-500">
-                    Coef.
-                  </th>
-                  {GROUPES.map((groupe) => [
+                  {[
+                    ['Code UE', 'px-6 text-left'],
+                    ['Intitule de l unite', 'px-3 text-left'],
+                    ['Matiere', 'px-3 text-left'],
+                    ['Note de classe', 'px-3 text-center'],
+                    ['Note d examen', 'px-3 text-center'],
+                    ['Note de matiere', 'px-3 text-center'],
+                    ['Credit ECTS', 'px-3 text-center'],
+                    ['Credit UE', 'px-3 text-center'],
+                    ['Moyenne UE', 'px-3 text-center'],
+                    ['Resultat', 'px-6 text-center'],
+                  ].map(([titre, classes]) => (
                     <th
-                      key={groupe.cle}
+                      key={titre}
                       scope="col"
-                      className="px-3 py-3 text-[10px] font-bold uppercase tracking-wide text-slate-500"
+                      className={`py-3 text-[10px] font-bold uppercase tracking-wide text-slate-500 ${classes}`}
                     >
-                      {groupe.titre}
-                    </th>,
-                    <th
-                      key={`${groupe.cle}-moyenne`}
-                      scope="col"
-                      className="border-l border-slate-200 px-3 py-3 text-center text-[10px] font-bold uppercase tracking-wide text-slate-500"
-                    >
-                      {groupe.abrege}
-                    </th>,
-                  ])}
-                  <th scope="col" className="border-l border-slate-300 px-3 py-3 text-center text-[10px] font-bold uppercase tracking-wide text-marine">
-                    Moyenne
-                  </th>
-                  <th scope="col" className="px-8 py-3 text-[10px] font-bold uppercase tracking-wide text-slate-500">
-                    Appreciation
-                  </th>
+                      {titre}
+                    </th>
+                  ))}
                 </tr>
               </thead>
 
               <tbody>
-                {b.matieres.map((ligne, index) => {
-                  // L'appreciation retenue est celle de l'evaluation la plus ponderee
-                  // qui en porte une : c'est le commentaire le plus representatif.
-                  const appreciation = [...ligne.evaluations]
-                    .filter((e) => e.appreciation)
-                    .sort((a, c) => c.evaluation.coefficient - a.evaluation.coefficient)[0]?.appreciation;
+                {b.ues.map((ue, indexUE) =>
+                  ue.matieres.map((ligne, indexMatiere) => {
+                    const premiere = indexMatiere === 0;
+                    const zebre = indexUE % 2 === 1 ? 'bg-slate-50/60' : 'bg-white';
 
-                  return (
-                    <tr
-                      key={ligne.matiere.id}
-                      className={`border-b border-slate-100 ${index % 2 ? 'bg-slate-50/60' : 'bg-white'}`}
-                    >
-                      <th scope="row" className="px-8 py-3 text-left align-top font-medium text-marine">
-                        {ligne.matiere.nom}
-                        <span className="mt-0.5 block text-[11px] font-normal text-slate-500">
-                          {ligne.matiere.professeur || 'Titulaire non designe'}
-                        </span>
-                      </th>
+                    return (
+                      <tr
+                        key={ligne.matiere.id}
+                        className={`${zebre} ${premiere && indexUE > 0 ? 'border-t border-slate-300' : 'border-t border-slate-100'}`}
+                      >
+                        {/*
+                          Les cellules d'UE sont fusionnees verticalement sur toutes
+                          ses matieres : c'est la structure du bulletin officiel, et
+                          c'est ce qui fait lire l'unite comme un bloc plutot que
+                          comme une colonne repetee.
+                        */}
+                        {premiere && (
+                          <>
+                            <th
+                              scope="rowgroup"
+                              rowSpan={ue.matieres.length}
+                              className="px-6 py-3 text-left align-top font-bold text-marine"
+                            >
+                              {ue.code || <span className="text-alerte">hors UE</span>}
+                            </th>
+                            <td
+                              rowSpan={ue.matieres.length}
+                              className="px-3 py-3 align-top text-xs leading-relaxed text-slate-600"
+                            >
+                              {ue.intitule}
+                            </td>
+                          </>
+                        )}
 
-                      <td className="px-3 py-3 text-center align-top tabular-nums text-slate-600">
-                        {ligne.matiere.coefficient}
-                      </td>
+                        <td className="px-3 py-3 font-medium text-marine">{ligne.matiere.nom}</td>
 
-                      {GROUPES.map((groupe) => {
-                        const notes = ligne.evaluations.filter((e) =>
-                          groupe.types.includes(e.evaluation.type)
-                        );
-                        const moyenneGroupe = ligne[groupe.champ];
+                        <td className="px-3 py-3 text-center tabular-nums text-slate-600">
+                          {formaterNote(ligne.noteClasse)}
+                        </td>
+                        <td className="px-3 py-3 text-center tabular-nums text-slate-600">
+                          {formaterNote(ligne.noteExamen)}
+                        </td>
+                        <td className={`px-3 py-3 text-center font-bold tabular-nums ${tonMoyenne(ligne.note)}`}>
+                          {formaterNote(ligne.note)}
+                        </td>
+                        <td className="px-3 py-3 text-center tabular-nums text-slate-600">
+                          {ligne.credits || '—'}
+                        </td>
 
-                        return [
-                          <td key={groupe.cle} className="px-3 py-3 align-top">
-                            {notes.length ? (
-                              <ul className="flex flex-wrap gap-1.5">
-                                {notes.map((note) => {
-                                  const affichee = formatNote(note);
-                                  return (
-                                    <li
-                                      key={note.evaluation.id}
-                                      title={note.evaluation.titre}
-                                      className={`rounded px-1.5 py-0.5 text-xs tabular-nums ${
-                                        note.absent
-                                          ? 'bg-alerte-fond text-alerte'
-                                          : affichee
-                                            ? 'bg-slate-100 text-slate-700'
-                                            : 'text-slate-300'
-                                      }`}
-                                    >
-                                      {affichee || '·'}
-                                    </li>
-                                  );
-                                })}
-                              </ul>
-                            ) : (
-                              <span className="text-xs text-slate-300">—</span>
-                            )}
-                          </td>,
-
-                          /* Moyenne du groupe : composante, donc plus discrete que
-                             la moyenne de matiere qui en decoule. */
-                          <td
-                            key={`${groupe.cle}-moyenne`}
-                            className="border-l border-slate-200 px-3 py-3 text-center align-top"
-                          >
-                            <span className="text-sm font-medium tabular-nums text-slate-600">
-                              {moyenneGroupe === null || moyenneGroupe === undefined
-                                ? '—'
-                                : moyenneGroupe.toFixed(2).replace('.', ',')}
-                            </span>
-                          </td>,
-                        ];
-                      })}
-
-                      <td className={`border-l border-slate-300 px-3 py-3 text-center align-top ${fondMoyenne(ligne.moyenne)}`}>
-                        <span className={`text-base font-bold tabular-nums ${tonMoyenne(ligne.moyenne)}`}>
-                          {ligne.moyenne === null ? '—' : ligne.moyenne.toFixed(2).replace('.', ',')}
-                        </span>
-                      </td>
-
-                      <td className="px-8 py-3 align-top text-xs leading-relaxed text-slate-600">
-                        {appreciation || <span className="text-slate-300">—</span>}
-                      </td>
-                    </tr>
-                  );
-                })}
+                        {premiere && (
+                          <>
+                            <td
+                              rowSpan={ue.matieres.length}
+                              className="px-3 py-3 text-center align-middle font-bold tabular-nums text-marine"
+                            >
+                              {ue.creditsTotal}
+                            </td>
+                            <td
+                              rowSpan={ue.matieres.length}
+                              className={`px-3 py-3 text-center align-middle font-bold tabular-nums ${tonMoyenne(ue.moyenne)}`}
+                            >
+                              {formaterNote(ue.moyenne)}
+                            </td>
+                            <td rowSpan={ue.matieres.length} className="px-6 py-3 text-center align-middle">
+                              {/*
+                                Le resultat ne repose pas sur la seule couleur : le mot
+                                est ecrit. Un bulletin s'imprime souvent en noir et
+                                blanc, et se lit aussi au lecteur d'ecran.
+                              */}
+                              <span
+                                className={`inline-block rounded px-2 py-0.5 text-xs font-bold ${
+                                  ue.validee ? 'bg-succes-fond text-succes' : 'bg-retard-fond text-retard'
+                                }`}
+                              >
+                                {ue.validee ? 'Valide' : 'Non valide'}
+                              </span>
+                              {ue.validee && ue.matieres.some((m) => m.note !== null && m.note < 10) && (
+                                <span className="mt-1 block text-[9px] leading-tight text-slate-500">
+                                  par compensation
+                                </span>
+                              )}
+                            </td>
+                          </>
+                        )}
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
 
               {/* Ligne de totalisation */}
               <tfoot>
                 <tr className="border-t-2 border-marine bg-white">
-                  <th scope="row" className="px-8 py-3 text-left font-bold text-marine">
-                    Moyenne generale
+                  <th scope="row" colSpan={5} className="px-6 py-3 text-left font-bold text-marine">
+                    Moyenne du semestre
                   </th>
-                  <td className="px-3 py-3 text-center tabular-nums text-slate-600">
-                    {b.matieres.reduce((s, m) => s + m.matiere.coefficient, 0)}
+                  <td className={`px-3 py-3 text-center text-lg font-bold tabular-nums ${tonMoyenne(b.moyenneGenerale)}`}>
+                    {formaterNote(b.moyenneGenerale)}
                   </td>
-                  <td colSpan={GROUPES.length * 2} className="px-3 py-3 text-xs text-slate-500">
-                    Mention : {b.mention || '—'}
+                  <td className="px-3 py-3 text-center text-xs text-slate-500">Total</td>
+                  <td className="px-3 py-3 text-center font-bold tabular-nums text-marine">
+                    {b.creditsTotal ?? 0}
                   </td>
-                  <td className="border-l border-slate-300 px-3 py-3 text-center">
-                    <span className={`text-lg font-bold tabular-nums ${tonMoyenne(b.moyenneGenerale)}`}>
-                      {b.moyenneGenerale === null ? '—' : b.moyenneGenerale.toFixed(2).replace('.', ',')}
+                  <td className="px-3 py-3 text-center text-xs text-slate-500">
+                    {b.mention || '—'}
+                  </td>
+                  <td className="px-6 py-3 text-center">
+                    <span className="text-sm font-bold tabular-nums text-marine">
+                      {b.creditsAcquis ?? 0}/{b.creditsTotal ?? 0}
                     </span>
-                  </td>
-                  <td className="px-8 py-3 text-xs text-slate-500">
-                    Rang {b.rang ? `${b.rang} / ${b.effectif}` : '—'}
+                    <span className="block text-[9px] text-slate-500">credits acquis</span>
                   </td>
                 </tr>
               </tfoot>
@@ -404,13 +405,16 @@ export default function BulletinEtudiant() {
           <div className="flex flex-wrap items-end justify-between gap-8">
             <p className="max-w-md text-[10px] leading-relaxed text-slate-500">
               <strong className="font-bold text-slate-600">
-                Moyenne d une matiere = (moyenne d examen x 2 + moyenne de classe) / 3.
+                Note de matiere = (note de classe x {b.ponderation?.poidsClasse ?? 1} + note d
+                examen x {b.ponderation?.poidsExamen ?? 2}) /{' '}
+                {(b.ponderation?.poidsClasse ?? 1) + (b.ponderation?.poidsExamen ?? 2)}.
               </strong>{' '}
-              La moyenne de classe agrege devoirs, interrogations, TP et projets. Lorsqu un
-              seul des deux groupes est renseigne, la moyenne de la matiere est celle de ce
-              groupe. Document genere electroniquement par la plateforme Technolab ISTA
-              le {editeLe}. Les notes portees sont celles publiees a cette date ; toute
-              correction ulterieure donnera lieu a une nouvelle edition.
+              Une unite d enseignement est validee lorsque sa moyenne — ponderee par les
+              credits — atteint 10/20 : la totalite de ses credits est alors acquise, y
+              compris pour une matiere restee en dessous. Une note manquante est ecartee du
+              calcul, jamais comptee pour zero. Document genere electroniquement par la
+              plateforme Technolab ISTA le {editeLe} ; toute correction ulterieure donnera
+              lieu a une nouvelle edition.
             </p>
 
             <div className="flex gap-12">

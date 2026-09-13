@@ -6,7 +6,7 @@
 import { Router } from 'express';
 import { protect, restrictTo } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
-import { ADMIN_ROLES, ROLES, STAFF_ROLES } from '../config/roles.js';
+import { ADMIN_ROLES, DOSSIER_ROLES, PEDAGOGIE_ROLES, ROLES, STAFF_ROLES } from '../config/roles.js';
 import * as matieres from '../controllers/matiere.controller.js';
 import * as evaluations from '../controllers/evaluation.controller.js';
 import * as bulletins from '../controllers/bulletin.controller.js';
@@ -23,17 +23,22 @@ import {
   saisieNotesSchema,
 } from '../validations/scolarite.validation.js';
 
-// Profils habilites a administrer l'offre de formation.
-const GESTION = [...ADMIN_ROLES, ROLES.SECRETAIRE];
+/*
+ * L'offre de formation est administree par la direction et le surveillant, pas
+ * par le secretariat : celui-ci gere les inscriptions et la caisse.
+ */
+const GESTION = PEDAGOGIE_ROLES;
+// Consultation : les memes, plus le professeur, qui y trouve ses matieres.
+const LECTURE = [...PEDAGOGIE_ROLES, ROLES.PROFESSEUR];
 // Profils habilites a saisir des notes.
-const SAISIE = [...GESTION, ROLES.PROFESSEUR];
+const SAISIE = [...ADMIN_ROLES, ROLES.SECRETAIRE, ROLES.PROFESSEUR];
 
 // --- /api/matieres ---
 export const matiereRouter = Router();
 matiereRouter.use(protect);
 
-matiereRouter.get('/', restrictTo(...STAFF_ROLES), validate({ query: listeMatieresQuerySchema }), matieres.lister);
-matiereRouter.get('/:id', restrictTo(...STAFF_ROLES), validate({ params: idParamSchema }), matieres.obtenir);
+matiereRouter.get('/', restrictTo(...LECTURE), validate({ query: listeMatieresQuerySchema }), matieres.lister);
+matiereRouter.get('/:id', restrictTo(...LECTURE), validate({ params: idParamSchema }), matieres.obtenir);
 matiereRouter.post('/', restrictTo(...GESTION), validate({ body: creerMatiereSchema }), matieres.creer);
 matiereRouter.patch('/:id', restrictTo(...GESTION), validate({ params: idParamSchema, body: majMatiereSchema }), matieres.modifier);
 matiereRouter.delete('/:id', restrictTo(...GESTION), validate({ params: idParamSchema }), matieres.supprimer);
@@ -57,17 +62,26 @@ evaluationRouter.delete('/:id', validate({ params: idParamSchema }), evaluations
 export const bulletinRouter = Router();
 bulletinRouter.use(protect);
 
+/*
+ * Le releve de classe porte les moyennes de TOUTES les matieres pour chaque
+ * etudiant : il releve du dossier, pas de la saisie. Un professeur n'y a donc
+ * pas acces, meme s'il enseigne dans cette classe.
+ */
 bulletinRouter.get(
   '/classe/:id',
-  restrictTo(...SAISIE),
+  restrictTo(...DOSSIER_ROLES),
   validate({ params: idParamSchema, query: releveQuerySchema }),
   bulletins.releveClasse
 );
 
-// Etudiant et parent y accedent : le controleur verifie le lien exact.
+/*
+ * Bulletin individuel. L'etudiant et le parent y accedent — le controleur
+ * verifie le lien exact — mais PAS le professeur : le document expose les notes
+ * de toutes les matieres, dont celles de ses collegues.
+ */
 bulletinRouter.get(
   '/:id',
-  restrictTo(...STAFF_ROLES, ROLES.ETUDIANT, ROLES.PARENT),
+  restrictTo(...DOSSIER_ROLES, ROLES.ETUDIANT, ROLES.PARENT),
   validate({ params: idParamSchema, query: bulletinQuerySchema }),
   bulletins.bulletinEtudiant
 );

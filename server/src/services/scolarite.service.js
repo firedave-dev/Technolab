@@ -29,11 +29,14 @@
  * une moyenne effondree qui ne veut rien dire.
  */
 import { Matiere } from '../models/Matiere.js';
-import { Evaluation } from '../models/Evaluation.js';
-import { Note } from '../models/Note.js';
+import { UE } from '../models/UE.js';
+import { NoteMatiere } from '../models/NoteMatiere.js';
 import { User } from '../models/User.js';
 import { ApiError } from '../utils/ApiError.js';
 import { ADMIN_ROLES, ROLES, STAFF_ROLES } from '../config/roles.js';
+import { bilanSemestre, bilanUE, noteMatiere } from './notation.service.js';
+import { ordonnerUEs } from './appariement.service.js';
+import { ponderationEnVigueur } from '../models/ParametrePedagogique.js';
 
 /** Arrondi a deux decimales, en conservant `null` pour "pas de moyenne". */
 const arrondir = (valeur) => (valeur === null ? null : Math.round(valeur * 100) / 100);
@@ -123,10 +126,21 @@ export async function verifierAccesEtudiant(acteur, etudiantId) {
 }
 
 /**
- * Bulletin d'un etudiant : moyenne par matiere, moyenne generale, rang dans la classe.
+ * Bulletin d'un etudiant, au format LMD : matieres groupees en UE, credits
+ * acquis par compensation, moyenne generale ponderee par les credits.
  *
- * `inclureNonPubliees` permet au personnel de voir le bulletin en cours de saisie ;
- * les etudiants et parents ne voient que les evaluations publiees.
+ * CE QUI A CHANGE — cette fonction lisait Evaluation + Note, c'est-a-dire un
+ * nombre quelconque d'epreuves par matiere. Elle lit desormais NoteMatiere, les
+ * deux notes que le professeur reporte. Sans cette bascule, les notes saisies
+ * dans la nouvelle grille n'apparaissaient sur aucun bulletin : la chaine
+ * saisie -> document etait rompue.
+ *
+ * RIEN N'EST STOCKE. Note de matiere, moyenne d'UE, credits et rang sont
+ * recalcules a chaque lecture. C'est ce qui permet a un changement de
+ * ponderation — parametre reglable — de se repercuter sur les bulletins.
+ *
+ * `inclureNonPubliees` laisse le personnel voir le bulletin en cours de saisie ;
+ * l'etudiant et sa famille ne voient que ce qui est publie.
  */
 export async function calculerBulletin(etudiantId, { periode, inclureNonPubliees = false } = {}) {
   const etudiant = await User.findOne({ _id: etudiantId, role: ROLES.ETUDIANT })
@@ -135,126 +149,162 @@ export async function calculerBulletin(etudiantId, { periode, inclureNonPubliees
 
   if (!etudiant) throw ApiError.notFound('Etudiant introuvable');
 
-  const classe = etudiant.infosEtudiant?.classe;
-  if (!classe) {
-    return { etudiant, classe: null, matieres: [], moyenneGenerale: null, rang: null, effectif: 0 };
-  }
-
-  const matieres = await Matiere.find({ classe: classe._id, actif: true })
-    .sort('nom')
-    .populate('professeur', 'nom prenom')
-    .lean();
-
-  const filtreEvaluation = {
-    classe: classe._id,
-    ...(periode ? { periode } : {}),
-    ...(inclureNonPubliees ? {} : { publiee: true }),
+  const identite = {
+    id: etudiant._id,
+    nomComplet: `${etudiant.prenom} ${etudiant.nom}`,
+    matricule: etudiant.matricule,
   };
 
-  const evaluations = await Evaluation.find(filtreEvaluation).sort('date').lean();
-  const evaluationsParMatiere = new Map();
-  for (const ev of evaluations) {
-    const cle = String(ev.matiere);
-    if (!evaluationsParMatiere.has(cle)) evaluationsParMatiere.set(cle, []);
-    evaluationsParMatiere.get(cle).push(ev);
+  const classe = etudiant.infosEtudiant?.classe;
+  if (!classe) {
+    return {
+      etudiant: identite, classe: null, ues: [], matieres: [],
+      moyenneGenerale: null, mention: null, rang: null, effectif: 0,
+      creditsAcquis: 0, creditsTotal: 0, moyenneGeneraleClasse: null,
+    };
   }
 
-  // Toutes les notes de la classe en une requete : sert aussi au calcul du rang.
-  const notes = await Note.find({ evaluation: { $in: evaluations.map((e) => e._id) } }).lean();
+  const semestre = periode && periode !== 'toutes' ? periode : undefined;
+
+  const [matieres, unites, ponderation] = await Promise.all([
+    Matiere.find({ classe: classe._id, actif: true, ...(semestre ? { semestre } : {}) })
+      .populate('professeur', 'nom prenom')
+      .lean(),
+    UE.find({ classe: classe._id, ...(semestre ? { semestre } : {}) }).sort({ ordre: 1 }).lean(),
+    ponderationEnVigueur(),
+  ]);
+
+  // Toutes les notes de la classe en une requete : elles servent aussi au rang.
+  const toutesLesNotes = await NoteMatiere.find({
+    matiere: { $in: matieres.map((m) => m._id) },
+    ...(semestre ? { semestre } : {}),
+    ...(inclureNonPubliees ? {} : { publiee: true }),
+  }).lean();
+
   const notesParEtudiant = new Map();
-  for (const note of notes) {
-    const cle = String(note.etudiant);
+  for (const ligne of toutesLesNotes) {
+    const cle = String(ligne.etudiant);
     if (!notesParEtudiant.has(cle)) notesParEtudiant.set(cle, new Map());
-    notesParEtudiant.get(cle).set(String(note.evaluation), note);
+    notesParEtudiant.get(cle).set(String(ligne.matiere), ligne);
   }
 
-  /** Detail par matiere pour un etudiant donne. */
+  const uniteParId = new Map(unites.map((u) => [String(u._id), u]));
+
+  /** Detail complet pour un etudiant : lignes de matiere, UE, bilan du semestre. */
   const detailPour = (idEtudiant) => {
     const sesNotes = notesParEtudiant.get(String(idEtudiant)) || new Map();
 
-    return matieres.map((matiere) => {
-      const evals = evaluationsParMatiere.get(String(matiere._id)) || [];
-
-      const lignes = evals.map((ev) => {
-        const note = sesNotes.get(String(ev._id));
-        return {
-          evaluation: { id: ev._id, titre: ev.titre, type: ev.type, date: ev.date, bareme: ev.bareme, coefficient: ev.coefficient },
-          valeur: note && !note.absent ? note.valeur : null,
-          absent: Boolean(note?.absent),
-          appreciation: note?.appreciation || null,
-          saisie: Boolean(note),
-        };
-      });
-
-      // Chaque groupe est moyenne de son cote, puis les deux sont composes.
-      const peser = (predicat) =>
-        moyennePonderee(
-          lignes
-            .map((l, i) => ({ note: l.valeur, bareme: evals[i].bareme, coefficient: evals[i].coefficient, type: evals[i].type }))
-            .filter((e) => predicat(e.type))
-        );
-
-      const moyenneClasse = peser((type) => TYPES_TRAVAUX_DE_CLASSE.includes(type));
-      const moyenneExamen = peser((type) => type === 'examen');
-      const moyenne = moyenneMatiere(moyenneClasse, moyenneExamen);
+    const lignes = matieres.map((matiere) => {
+      const saisie = sesNotes.get(String(matiere._id));
+      const noteClasse = saisie?.noteClasse ?? null;
+      const noteExamen = saisie?.noteExamen ?? null;
+      const credits = matiere.creditsEcts ?? 0;
 
       return {
         matiere: {
           id: matiere._id,
           nom: matiere.nom,
           code: matiere.code,
-          coefficient: matiere.coefficient,
+          typeMatiere: matiere.typeMatiere || null,
+          creditsEcts: credits,
           professeur: matiere.professeur
             ? `${matiere.professeur.prenom} ${matiere.professeur.nom}`
             : null,
         },
-        evaluations: lignes,
-        moyenneClasse,
-        moyenneExamen,
-        moyenne,
-        mention: mention(moyenne),
+        ue: matiere.ue ? String(matiere.ue) : null,
+        noteClasse,
+        noteExamen,
+        note: noteMatiere(noteClasse, noteExamen, ponderation),
+        credits,
+        appreciation: saisie?.appreciation || null,
       };
     });
+
+    /*
+     * Regroupement par UE. Les matieres SANS UE ne sont pas perdues : elles sont
+     * rassemblees dans une entree sans code, visible sur le bulletin. Les
+     * escamoter masquerait une structure incomplete au lieu de la signaler.
+     */
+    const groupes = new Map();
+    for (const ligne of lignes) {
+      const cle = ligne.ue || 'hors-ue';
+      if (!groupes.has(cle)) groupes.set(cle, []);
+      groupes.get(cle).push(ligne);
+    }
+
+    const ues = [...groupes.entries()].map(([cle, membres]) => {
+      const unite = uniteParId.get(cle);
+      const bilan = bilanUE(membres.map((m) => ({ note: m.note, credits: m.credits })));
+
+      return {
+        id: cle === 'hors-ue' ? null : cle,
+        code: unite?.code ?? null,
+        intitule: unite?.intitule ?? 'Matieres non rattachees a une unite',
+        matieres: membres,
+        ...bilan,
+      };
+    });
+
+    return { lignes, ues, bilan: bilanSemestre(ues) };
   };
 
-  /** Moyenne generale : moyennes de matieres ponderees par leur coefficient. */
-  const generalePour = (detail) =>
-    moyennePonderee(
-      detail.map((d) => ({ note: d.moyenne, bareme: 20, coefficient: d.matiere.coefficient }))
-    );
+  const { lignes, ues, bilan } = detailPour(etudiantId);
 
-  const detail = detailPour(etudiantId);
-  const moyenneGenerale = generalePour(detail);
+  /*
+   * Ordre d'apparition sur le document : UE par credit croissant, puis par ordre
+   * alphabetique de leur premiere matiere ; matieres triees alphabetiquement a
+   * l'interieur de chaque UE. `ordonnerUEs` porte deja cette regle, accents et
+   * casse compris.
+   */
+  const ordreUE = ordonnerUEs(
+    ues.map((ue) => ({
+      cle: ue.id ?? 'hors-ue',
+      credits: ue.creditsTotal,
+      matieres: ue.matieres.map((m) => m.matiere),
+    }))
+  );
 
-  // Rang : on calcule la moyenne generale de chaque etudiant de la classe.
+  const uesOrdonnees = ordreUE.map((ordonnee, index) => {
+    const origine = ues.find((u) => (u.id ?? 'hors-ue') === ordonnee.cle);
+    const parId = new Map(origine.matieres.map((l) => [String(l.matiere.id), l]));
+
+    return {
+      ...origine,
+      rang: index + 1,
+      matieres: ordonnee.matieres.map((m) => parId.get(String(m.id))).filter(Boolean),
+    };
+  });
+
+  // Rang : la moyenne de chaque etudiant de la classe, calculee a l'identique.
   const camarades = await User.find({ role: ROLES.ETUDIANT, 'infosEtudiant.classe': classe._id })
     .select('_id')
     .lean();
 
   const moyennes = camarades
-    .map((c) => generalePour(detailPour(c._id)))
+    .map((c) => detailPour(c._id).bilan.moyenne)
     .filter((m) => m !== null)
     .sort((a, b) => b - a);
 
-  const rang = moyenneGenerale === null ? null : moyennes.indexOf(moyenneGenerale) + 1;
+  const rang = bilan.moyenne === null ? null : moyennes.indexOf(bilan.moyenne) + 1;
 
   return {
-    etudiant: {
-      id: etudiant._id,
-      nomComplet: `${etudiant.prenom} ${etudiant.nom}`,
-      matricule: etudiant.matricule,
-    },
+    etudiant: identite,
     classe,
     periode: periode || 'toutes',
-    matieres: detail,
-    moyenneGenerale,
-    mention: mention(moyenneGenerale),
+    ponderation,
+    ues: uesOrdonnees,
+    // Liste a plat, conservee pour les ecrans qui n'affichent pas les UE.
+    matieres: lignes,
+    moyenneGenerale: bilan.moyenne,
+    mention: bilan.mention,
+    creditsAcquis: bilan.creditsAcquis,
+    creditsTotal: bilan.creditsTotal,
     rang,
     effectif: camarades.length,
-    // Moyenne de la PROMOTION, a ne pas confondre avec la moyenne de classe d'une
-    // matiere ci-dessus : celle-ci compare l'etudiant a ses camarades.
+    // Moyenne de la PROMOTION, a ne pas confondre avec la note de classe d'une
+    // matiere : celle-ci compare l'etudiant a ses camarades.
     moyenneGeneraleClasse: moyennes.length
-      ? arrondir(moyennes.reduce((s, m) => s + m, 0) / moyennes.length)
+      ? Math.round((moyennes.reduce((s, m) => s + m, 0) / moyennes.length) * 100) / 100
       : null,
   };
 }

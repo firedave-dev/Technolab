@@ -2,7 +2,7 @@
 import { Router } from 'express';
 import { protect, restrictTo } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
-import { ADMIN_ROLES, ROLES, STAFF_ROLES } from '../config/roles.js';
+import { ADMIN_ROLES, ROLES, STAFF_ROLES, PEDAGOGIE_ROLES } from '../config/roles.js';
 import * as ctrl from '../controllers/classe.controller.js';
 import {
   creerClasseSchema,
@@ -15,10 +15,12 @@ const router = Router();
 router.use(protect);
 
 // Tout le personnel consulte les classes ; seules la direction et la secretaire les modifient.
-const GESTION = [...ADMIN_ROLES, ROLES.SECRETAIRE];
+// Meme regle que les matieres : structure pedagogique, pas secretariat.
+const GESTION = PEDAGOGIE_ROLES;
+const LECTURE = [...PEDAGOGIE_ROLES, ROLES.PROFESSEUR];
 
-router.get('/', restrictTo(...STAFF_ROLES), validate({ query: listeClassesQuerySchema }), ctrl.lister);
-router.get('/:id', restrictTo(...STAFF_ROLES), validate({ params: idParamSchema }), ctrl.obtenir);
+router.get('/', restrictTo(...LECTURE), validate({ query: listeClassesQuerySchema }), ctrl.lister);
+router.get('/:id', restrictTo(...LECTURE), validate({ params: idParamSchema }), ctrl.obtenir);
 
 router.post('/', restrictTo(...GESTION), validate({ body: creerClasseSchema }), ctrl.creer);
 router.patch('/:id', restrictTo(...GESTION), validate({ params: idParamSchema, body: majClasseSchema }), ctrl.modifier);

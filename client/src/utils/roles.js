@@ -25,6 +25,19 @@ export const STAFF_ROLES = [
   ROLES.PROFESSEUR, ROLES.SURVEILLANT,
 ];
 
+/**
+ * Personnel habilite a consulter le DOSSIER d'un etudiant : bulletin complet,
+ * fiche individuelle. Le professeur en est exclu — un bulletin porte les notes
+ * de toutes les matieres, une fiche porte les coordonnees de la famille.
+ * Miroir de DOSSIER_ROLES cote serveur.
+ */
+export const DOSSIER_ROLES = [
+  ROLES.ADMIN, ROLES.DIRECTEUR, ROLES.SECRETAIRE, ROLES.SURVEILLANT,
+];
+
+/** Personnel habilite a administrer l'offre de formation (classes, matieres, UE). */
+export const PEDAGOGIE_ROLES = [ROLES.ADMIN, ROLES.DIRECTEUR, ROLES.SURVEILLANT];
+
 /** Couleur du badge de role (usage : classes Tailwind). */
 export const ROLE_BADGE = {
   [ROLES.ADMIN]: 'bg-slate-800 text-white',

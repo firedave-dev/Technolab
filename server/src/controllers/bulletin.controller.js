@@ -45,7 +45,13 @@ export const releveClasse = catchAsync(async (req, res) => {
       moyenneGenerale: bulletin.moyenneGenerale,
       mention: bulletin.mention,
       rang: bulletin.rang,
-      matieres: bulletin.matieres.map((m) => ({ nom: m.matiere.nom, code: m.matiere.code, moyenne: m.moyenne })),
+      // `note` et non `moyenne` : depuis la bascule sur le modele a deux notes,
+      // c'est le nom que porte la note de matiere.
+      matieres: bulletin.matieres.map((m) => ({
+        nom: m.matiere.nom, code: m.matiere.code, moyenne: m.note,
+      })),
+      creditsAcquis: bulletin.creditsAcquis,
+      creditsTotal: bulletin.creditsTotal,
     });
   }
 
