@@ -9,7 +9,9 @@
     "start": "node src/index.js",
     "seed": "node src/seed/seed.js",
     "test": "node tests/run.mjs",
-    "retirer-role": "node src/seed/retirer-role.js"
+    "retirer-role": "node src/seed/retirer-role.js",
+    "mail:apercu": "node src/scripts/apercu-emails.js",
+    "mail:test": "node src/scripts/test-email.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
@@ -22,9 +24,9 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.16.4",
     "morgan": "^1.10.0",
-    "nodemailer": "^9.1.0",
     "pdfkit": "^0.20.2",
     "qrcode": "^1.5.4",
+    "resend": "^6.28.0",
     "zod": "^4.0.5"
   }
 }

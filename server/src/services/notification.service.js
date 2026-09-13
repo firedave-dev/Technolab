@@ -44,7 +44,7 @@ export async function notifierParents(etudiantId, contenu) {
  * Envoie le message aux comptes actifs disposant d'une adresse.
  * Les echecs sont journalises par le service d'email et n'interrompent jamais l'appelant.
  */
-async function relayerParEmail(ids, { titre, message, lien }) {
+async function relayerParEmail(ids, { titre, message, lien, type }) {
   const destinataires = await User.find({ _id: { $in: ids }, actif: true })
     .select('email prenom')
     .lean();
@@ -56,6 +56,8 @@ async function relayerParEmail(ids, { titre, message, lien }) {
         prenom: u.prenom,
         titre,
         message,
+        // Choisit l'habillage : prefixe d'objet, libelle du bouton, phrase de pied.
+        type,
         lien: lien ? `${env.clientUrl}${lien}` : undefined,
       })
     )

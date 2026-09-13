@@ -20,6 +20,7 @@ import {
   listeFraisQuerySchema,
   listePaiementsQuerySchema,
   majEcheanceSchema,
+  rappelsSchema,
   majFraisSchema,
   soldeQuerySchema,
   statistiquesQuerySchema,
@@ -48,6 +49,14 @@ echeanceRouter.get('/statistiques', restrictTo(...CAISSE), validate({ query: sta
 echeanceRouter.get('/', validate({ query: listeEcheancesQuerySchema }), compta.listerEcheances);
 echeanceRouter.get('/solde/:id', validate({ params: idParamSchema, query: soldeQuerySchema }), compta.solde);
 echeanceRouter.get('/etudiant/:id', validate({ params: idParamSchema, query: soldeQuerySchema }), compta.echeancierEtudiant);
+
+// Relance des familles : geste de caisse, jamais ouvert au corps enseignant.
+echeanceRouter.post(
+  '/rappels',
+  restrictTo(...CAISSE),
+  validate({ body: rappelsSchema }),
+  compta.envoyerRappels
+);
 
 echeanceRouter.post('/classe', restrictTo(...CAISSE), validate({ body: genererClasseSchema }), compta.genererPourClasse);
 echeanceRouter.post(

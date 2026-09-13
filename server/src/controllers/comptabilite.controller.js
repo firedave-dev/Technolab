@@ -18,10 +18,16 @@ import {
   statistiquesComptables,
   verifierAccesFinancier,
 } from '../services/comptabilite.service.js';
+import { notifierParents } from '../services/notification.service.js';
+import { formaterMontant } from '../utils/montantEnLettres.js';
 
 // ============================ Grille tarifaire ============================
 
 /** GET /api/frais */
+/** Date au format francais court, pour les messages de relance. */
+const dateFr = (valeur) =>
+  new Date(valeur).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
+
 export const listerFrais = catchAsync(async (req, res) => {
   const { classe, anneeScolaire, type, actif } = req.query;
   const filtre = {};
@@ -249,4 +255,91 @@ export const statistiques = catchAsync(async (req, res) => {
 export const solde = catchAsync(async (req, res) => {
   verifierAccesFinancier(req.user, req.params.id);
   res.json({ success: true, solde: await soldeEtudiant(req.params.id, req.query.anneeScolaire) });
+});
+
+/**
+ * POST /api/echeances/rappels — relance les familles sur les echeances dues.
+ *
+ * DECLENCHE A LA MAIN, pas par une tache planifiee. Un rappel automatique
+ * supposerait un ordonnanceur que ce deploiement n'a pas, et surtout il partirait
+ * sans que personne ne l'ait relu — or une relance de paiement adressee a tort a
+ * une famille a jour coute plus cher que le rappel ne rapporte. Le secretariat
+ * choisit son moment et voit d'abord combien de foyers seront touches.
+ *
+ * `joursAvant` couvre les deux usages d'un meme geste : a 0, on ne relance que
+ * le retard avere ; a 7, on previent une semaine avant l'echeance.
+ */
+export const envoyerRappels = catchAsync(async (req, res) => {
+  const { classe, anneeScolaire, joursAvant = 0, simulation = false } = req.body;
+
+  const limite = new Date();
+  limite.setDate(limite.getDate() + Number(joursAvant));
+
+  const filtre = {
+    statut: { $in: ['a_payer', 'partiel'] },
+    dateEcheance: { $lte: limite },
+    ...(classe ? { classe } : {}),
+    ...(anneeScolaire ? { anneeScolaire } : {}),
+  };
+
+  const echeances = await Echeance.find(filtre)
+    .populate('etudiant', 'nom prenom')
+    .sort({ dateEcheance: 1 })
+    .lean();
+
+  // Une famille recoit UN message recapitulatif, pas un par echeance : trois
+  // tranches en retard ne justifient pas trois courriers le meme jour.
+  const parEtudiant = new Map();
+
+  for (const echeance of echeances) {
+    const reste = Math.max(0, echeance.montant - echeance.montantPaye);
+    if (reste <= 0) continue;
+
+    const cle = String(echeance.etudiant?._id ?? echeance.etudiant);
+    if (!parEtudiant.has(cle)) {
+      parEtudiant.set(cle, { etudiant: echeance.etudiant, lignes: [], total: 0 });
+    }
+
+    const dossier = parEtudiant.get(cle);
+    dossier.lignes.push({ libelle: echeance.libelle, reste, date: echeance.dateEcheance });
+    dossier.total += reste;
+  }
+
+  const dossiers = [...parEtudiant.values()];
+
+  // La simulation renvoie le perimetre sans rien envoyer : on regarde avant d'agir.
+  if (simulation) {
+    return res.json({
+      success: true,
+      simulation: true,
+      familles: dossiers.length,
+      montantTotal: dossiers.reduce((s, d) => s + d.total, 0),
+      apercu: dossiers.slice(0, 10).map((d) => ({
+        etudiant: `${d.etudiant?.nom ?? ''} ${d.etudiant?.prenom ?? ''}`.trim(),
+        echeances: d.lignes.length,
+        reste: d.total,
+      })),
+    });
+  }
+
+  for (const dossier of dossiers) {
+    const detail = dossier.lignes
+      .map((l) => `${l.libelle} : ${formaterMontant(l.reste)} (echue le ${dateFr(l.date)})`)
+      .join(' ; ');
+
+    await notifierParents(dossier.etudiant?._id ?? dossier.etudiant, {
+      type: 'paiement',
+      titre: Number(joursAvant) > 0 ? 'Echeance de scolarite a venir' : 'Echeance de scolarite en retard',
+      message: `Reste a regler : ${formaterMontant(dossier.total)}. ${detail}.`,
+      lien: '/paiements',
+      email: true,
+    });
+  }
+
+  res.json({
+    success: true,
+    message: `${dossiers.length} famille(s) relancee(s)`,
+    familles: dossiers.length,
+    montantTotal: dossiers.reduce((s, d) => s + d.total, 0),
+  });
 });

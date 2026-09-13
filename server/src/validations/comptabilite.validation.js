@@ -106,3 +106,17 @@ export const soldeQuerySchema = z.object({
 export const verificationRecuSchema = z.object({
   numeroRecu: z.string().regex(/^REC-\d{4}-[A-Z0-9]{4}$/, 'Numero de recu invalide'),
 });
+
+/**
+ * Relance des familles sur les echeances dues.
+ *
+ * `simulation` permet de voir le perimetre avant d'envoyer : c'est la seule
+ * protection contre une relance adressee a tort a des familles a jour.
+ */
+export const rappelsSchema = z.object({
+  classe: objectId.optional(),
+  anneeScolaire: z.string().regex(/^\d{4}-\d{4}$/, 'Format attendu : 2025-2026').optional(),
+  // 0 = ne relancer que le retard avere ; 7 = prevenir une semaine avant.
+  joursAvant: z.coerce.number().int().min(0).max(60).optional(),
+  simulation: z.coerce.boolean().optional(),
+});

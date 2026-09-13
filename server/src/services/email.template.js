@@ -11,9 +11,11 @@
  * - largeur du logo fixee a 200 px, au-dessus du plancher de 28 mm (~106 px) de la charte.
  */
 
-const MARINE = '#0B2E52';
-const ISTA = '#1F6FE0';
-const CLAIR_SUR_FONCE = '#7FB6F7';
+import { env } from '../config/env.js';
+
+const MARINE = '#2E4474';
+const ISTA = '#038129';
+const CLAIR_SUR_FONCE = '#C4CDDC';
 const ARDOISE = '#475569';
 const BORDURE = '#e2e8f0';
 
@@ -29,6 +31,54 @@ const echapper = (texte = '') =>
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+
+/**
+ * Lignes d'identite de l'etablissement, pour le pied de page.
+ *
+ * Chaque mention est configuree, jamais codee en dur : elles varient d'un
+ * etablissement a l'autre, et une adresse ou un numero d'agrement FAUX dans un
+ * courrier officiel est plus dommageable que son absence. Les lignes non
+ * renseignees sont donc simplement omises.
+ *
+ * Renvoie du HTML pret a inserer, ou une chaine vide si rien n'est configure.
+ */
+function lignesIdentite() {
+  const { adresse, telephone, email, agrement, rccm } = env.etablissement;
+
+  /*
+   * Le prefixe n'est ajoute que s'il manque : les valeurs configurees le
+   * portent souvent deja (« RC 1316 »), et le redoubler donnait « RC RC 1316 ».
+   */
+  const prefixer = (valeur, prefixe) =>
+    !valeur ? null
+      : new RegExp(`^${prefixe}`, 'i').test(valeur.trim()) ? valeur
+        : `${prefixe} ${valeur}`;
+
+  return [
+    adresse,
+    prefixer(telephone, 'Tel.'),
+    email,
+    prefixer(agrement, 'Agrement'),
+    prefixer(rccm, 'RC'),
+  ].filter(Boolean);
+}
+
+/** Fiche institutionnelle du pied, en deux lignes au plus. */
+function coordonnees() {
+  const lignes = lignesIdentite();
+  if (!lignes.length) return '';
+
+  // Coordonnees d'abord, mentions legales ensuite : le lecteur cherche les
+  // premieres, les secondes n'ont qu'a etre presentes.
+  const contact = lignes.slice(0, 3).map(echapper).join('&nbsp;·&nbsp;');
+  const legales = lignes.slice(3).map(echapper).join('&nbsp;·&nbsp;');
+
+  return `
+    <p style="margin:0;font-size:12px;line-height:1.7;color:#ffffff;">${contact}</p>
+    ${legales
+      ? `<p style="margin:4px 0 0;font-size:11px;line-height:1.6;color:${CLAIR_SUR_FONCE};">${legales}</p>`
+      : ''}`;
+}
 
 /**
  * Compose un email complet.
@@ -86,9 +136,32 @@ export function composerEmail({ titre, intro, corps = [], action, complement }) 
 
             <!-- En-tete : zone d'autorite, aplat marine et logo sur fond marine -->
             <tr>
-              <td style="background:${MARINE};padding:26px 32px;" align="left">
-                <img src="cid:${CID_LOGO}" alt="Technolab ISTA — Universite privee"
-                     width="200" style="display:block;width:200px;height:auto;border:0;" />
+              <td style="background:${MARINE};padding:24px 32px;" align="left">
+                <!--
+                  Verrou de marque : blason a gauche, nom compose en TEXTE a droite.
+                  Le logo officiel est un blason quasi carre ; le servir a la largeur
+                  de l'ancien verrou horizontal lui donnerait 186 px de haut. Le nom
+                  en texte reste par ailleurs lisible quand le client de messagerie
+                  bloque les images, ce qui est le reglage par defaut de plusieurs
+                  d'entre eux.
+                -->
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td style="padding-right:12px;" valign="middle">
+                      <img src="cid:${CID_LOGO}" alt="" width="52"
+                           style="display:block;width:52px;height:auto;border:0;" />
+                    </td>
+                    <td valign="middle">
+                      <div style="font:700 19px ${POLICE};color:#ffffff;line-height:1.1;">
+                        TechnoLAB-ISTA
+                      </div>
+                      <div style="font:500 9px ${POLICE};color:${CLAIR_SUR_FONCE};
+                                  letter-spacing:.06em;text-transform:uppercase;padding-top:4px;">
+                        Institut Superieur de Technologies Appliquees
+                      </div>
+                    </td>
+                  </tr>
+                </table>
               </td>
             </tr>
 
@@ -106,15 +179,23 @@ export function composerEmail({ titre, intro, corps = [], action, complement }) 
               </td>
             </tr>
 
-            <!-- Pied : aplat marine, texte secondaire en bleu clair -->
+            <!-- Pied : aplat marine, fiche institutionnelle abregee -->
             <tr>
-              <td style="background:${MARINE};padding:20px 32px;" align="center">
-                <p style="margin:0 0 4px;font-size:10px;font-weight:500;letter-spacing:0.28em;
+              <td style="background:${MARINE};padding:22px 32px;" align="center">
+                <p style="margin:0 0 10px;font-size:10px;font-weight:500;letter-spacing:0.28em;
                           text-transform:uppercase;color:${CLAIR_SUR_FONCE};">
-                  Universite privee
+                  Institut Superieur de Technologies Appliquees
                 </p>
-                <p style="margin:0;font-size:12px;color:${CLAIR_SUR_FONCE};">
-                  &copy; ${new Date().getFullYear()} Technolab ISTA — Message automatique, ne pas repondre
+
+                ${coordonnees()}
+
+                <p style="margin:12px 0 0;font-size:11px;line-height:1.6;color:${CLAIR_SUR_FONCE};">
+                  &copy; ${new Date().getFullYear()} ${echapper(env.etablissement.raisonSociale)}
+                  &nbsp;·&nbsp; Message automatique${
+                    env.smtp.repondreA
+                      ? ` — vous pouvez repondre a ${echapper(env.smtp.repondreA)}`
+                      : ', merci de ne pas y repondre'
+                  }
                 </p>
               </td>
             </tr>
@@ -131,7 +212,7 @@ export function composerTexte({ titre, intro, corps = [], action, complement }) 
   const sansBalises = (t) => String(t).replace(/<[^>]+>/g, '');
 
   return [
-    'TECHNOLAB ISTA — Universite privee',
+    'TECHNOLAB-ISTA — Institut Superieur de Technologies Appliquees',
     '',
     sansBalises(titre),
     '',
@@ -140,7 +221,11 @@ export function composerTexte({ titre, intro, corps = [], action, complement }) 
     action ? `\n${action.libelle} : ${action.url}` : null,
     complement ? `\n${sansBalises(complement)}` : null,
     '',
-    'Message automatique, merci de ne pas y repondre.',
+    '--',
+    ...lignesIdentite(),
+    env.smtp.repondreA
+      ? `Message automatique. Vous pouvez repondre a ${env.smtp.repondreA}.`
+      : 'Message automatique, merci de ne pas y repondre.',
   ]
     .filter((l) => l !== null)
     .join('\n');

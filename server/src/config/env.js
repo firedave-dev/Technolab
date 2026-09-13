@@ -31,12 +31,40 @@ export const env = {
    * Messagerie. Sans SMTP_HOST, les emails sont journalises au lieu d'etre envoyes :
    * le developpement et les tests fonctionnent sans compte de messagerie.
    */
+  /*
+   * Messagerie.
+   *
+   * Le bloc garde le nom `smtp` bien que l'envoi passe desormais par l'API
+   * Resend : il designe la configuration de messagerie, et le renommer
+   * obligerait a toucher chaque appelant sans rien apporter. Les variables
+   * SMTP_FROM / SMTP_REPLY_TO restent elles aussi valables — elles decrivent
+   * l'expediteur, pas le protocole.
+   */
   smtp: {
-    host: process.env.SMTP_HOST || '',
-    port: Number(process.env.SMTP_PORT) || 587,
-    user: process.env.SMTP_USER || '',
-    pass: process.env.SMTP_PASS || '',
-    expediteur: process.env.SMTP_FROM || 'TechnoLAB-ISTA <no-reply@technolab-ista.net>',
+    /** Cle d'API Resend. Vide = mode degrade, rien ne part sur le reseau. */
+    cleApi: process.env.RESEND_API_KEY || '',
+    /** Nom lisible de l'expediteur, compose avec l'adresse ci-dessous. */
+    nomExpediteur: process.env.SMTP_FROM_NAME || 'TechnoLAB-ISTA',
+    /**
+     * Adresse d'expedition.
+     *
+     * Deux ecritures circulent selon l'age du fichier .env : l'adresse nue
+     * (« mails@technolab-ista.org ») ou le couple complet (« Nom <adresse> »).
+     * La composition finale est faite dans email.service.js, qui accepte les
+     * deux — un deploiement dont le .env n'a pas ete repris ne doit pas se
+     * mettre a envoyer depuis « TechnoLAB-ISTA <TechnoLAB-ISTA <...>> ».
+     */
+    adresseExpediteur: process.env.SMTP_FROM || 'mails@technolab-ista.org',
+    /*
+     * Adresse de reponse.
+     *
+     * L'adresse d'expedition sert a AUTHENTIFIER le courrier : elle doit rester
+     * sur le domaine verifie aupres du fournisseur d'envoi, sans quoi SPF et
+     * DKIM echouent et le message part en indesirable. Or personne ne releve
+     * cette boite. Sans `Reply-To`, une famille qui repond a une notification
+     * d'absence ecrit donc dans le vide.
+     */
+    repondreA: process.env.SMTP_REPLY_TO || 'technolab@technolab-ista.net',
   },
   /*
    * Identification legale portee par les documents officiels (recus, attestations).
@@ -48,6 +76,16 @@ export const env = {
     rccm: process.env.ETABLISSEMENT_RCCM || '',
     nif: process.env.ETABLISSEMENT_NIF || '',
     adresse: process.env.ETABLISSEMENT_ADRESSE || '',
+    /*
+     * Coordonnees portees par le pied des emails.
+     *
+     * Vides par defaut plutot que renseignees en dur : une adresse ou un
+     * telephone faux dans un courrier officiel est pire que leur absence, et
+     * les documents omettent simplement les lignes non fournies.
+     */
+    telephone: process.env.ETABLISSEMENT_TELEPHONE || '',
+    email: process.env.ETABLISSEMENT_EMAIL || '',
+    agrement: process.env.ETABLISSEMENT_AGREMENT || '',
   },
   seed: {
     adminEmail: process.env.SEED_ADMIN_EMAIL || 'admin@technolab-ista.edu',
