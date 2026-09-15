@@ -11,7 +11,9 @@
     "test": "node tests/run.mjs",
     "retirer-role": "node src/seed/retirer-role.js",
     "mail:apercu": "node src/scripts/apercu-emails.js",
-    "mail:test": "node src/scripts/test-email.js"
+    "mail:test": "node src/scripts/test-email.js",
+    "rentree": "node src/scripts/rentree.js",
+    "sauvegarder": "node src/scripts/sauvegarder.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",

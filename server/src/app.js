@@ -6,6 +6,7 @@ import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
 import { env } from './config/env.js';
 import routes from './routes/index.js';
+import { journaliser } from './middleware/journal.js';
 import { apiLimiter } from './middleware/rateLimit.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 
@@ -28,7 +29,7 @@ export function createApp() {
   if (!env.isProd) app.use(morgan('dev'));
 
   // --- API ---
-  app.use('/api', apiLimiter, routes);
+  app.use('/api', apiLimiter, journaliser, routes);
 
   // --- 404 puis gestion centralisee des erreurs ---
   app.use(notFoundHandler);

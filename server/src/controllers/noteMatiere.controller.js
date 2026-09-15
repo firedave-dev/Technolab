@@ -20,6 +20,9 @@ import { verifierAccesMatiere } from '../services/scolarite.service.js';
 import { noteMatiere } from '../services/notation.service.js';
 import { ponderationEnVigueur } from '../models/ParametrePedagogique.js';
 import { genererEmargementPDF } from '../services/emargement.service.js';
+import {
+  cellulesFigees, conflitsDeSaisie, messageRefus, peutCorriger,
+} from '../services/saisieNotes.service.js';
 
 /**
  * GET /api/notes/mes-enseignements
@@ -121,6 +124,9 @@ export const grille = catchAsync(async (req, res) => {
       note: noteMatiere(noteClasse, noteExamen, ponderation),
       publiee: ligne?.publiee ?? false,
       appreciation: ligne?.appreciation ?? '',
+      // Cases deja posees, que cet acteur ne peut plus modifier. Le formulaire
+      // les rend non saisissables ; le serveur refuse de toute facon.
+      figees: cellulesFigees(ligne, req.user.role),
     };
   });
 
@@ -179,6 +185,44 @@ export const enregistrerGrille = catchAsync(async (req, res) => {
     );
   }
 
+  /*
+   * UNE NOTE ENREGISTREE EST DEFINITIVE POUR CELUI QUI L'A SAISIE.
+   *
+   * Le controle est refait ici alors que le formulaire rend deja ces cases non
+   * saisissables : l'interface peut etre contournee, le serveur non. Une grille
+   * restee ouverte pendant qu'un collegue saisissait tomberait egalement sur ce
+   * refus, ce qui est le comportement voulu — elle est perimee.
+   */
+  const deja = new Map(
+    (await NoteMatiere.find({
+      matiere: matiereId,
+      etudiant: { $in: lignes.map((l) => l.etudiant) },
+      semestre: periode,
+      anneeScolaire: annee,
+    }).lean()).map((n) => [String(n.etudiant), n])
+  );
+
+  const conflits = conflitsDeSaisie(lignes, deja, req.user.role);
+  if (conflits.length) throw ApiError.forbidden(messageRefus(conflits));
+
+  /**
+   * Valeurs effectivement ecrites pour une ligne.
+   *
+   * Un champ absent du corps de la requete vaut « inchange », et non « efface ».
+   * Ecrire `null` sans distinguer les deux cas effacerait une note figee que le
+   * formulaire n'avait meme pas transmise, puisqu'elle n'y etait pas saisissable
+   * — le controle des conflits, lui, laisse passer un champ absent.
+   */
+  const valeursAEcrire = (ligne) => {
+    const existant = deja.get(String(ligne.etudiant));
+    const valeur = (champ) => {
+      if (ligne[champ] !== undefined) return ligne[champ];
+      if (peutCorriger(req.user.role)) return null;
+      return existant?.[champ] ?? null;
+    };
+    return { noteClasse: valeur('noteClasse'), noteExamen: valeur('noteExamen') };
+  };
+
   const operations = lignes.map((ligne) => ({
     updateOne: {
       filter: {
@@ -189,8 +233,7 @@ export const enregistrerGrille = catchAsync(async (req, res) => {
       },
       update: {
         $set: {
-          noteClasse: ligne.noteClasse ?? null,
-          noteExamen: ligne.noteExamen ?? null,
+          ...valeursAEcrire(ligne),
           ...(ligne.appreciation !== undefined ? { appreciation: ligne.appreciation } : {}),
           saisiePar: req.user._id,
         },

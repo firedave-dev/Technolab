@@ -18,6 +18,12 @@ export const creerCreneauSchema = z
     heureFin: heure,
     salle: texteOptionnel(40),
     type: z.enum(TYPES_SEANCE).optional(),
+    /*
+     * Classes reunies avec la classe principale pour un cours mutualise.
+     * Plafonnees a cinq : au-dela, il ne s'agit plus d'un cours commun mais
+     * d'un amphitheatre, qui releve d'une autre organisation.
+     */
+    classesAssociees: z.array(objectId).max(5).optional(),
     anneeScolaire: anneeScolaire.optional(),
   })
   .refine((d) => d.heureFin > d.heureDebut, {
@@ -32,6 +38,7 @@ export const majCreneauSchema = z
     heureFin: heure.optional(),
     salle: texteOptionnel(40),
     type: z.enum(TYPES_SEANCE).optional(),
+    classesAssociees: z.array(objectId).max(5).optional(),
     actif: z.coerce.boolean().optional(),
   })
   .refine((d) => !d.heureDebut || !d.heureFin || d.heureFin > d.heureDebut, {

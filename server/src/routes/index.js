@@ -13,6 +13,9 @@ import absenceRoutes from './absence.routes.js';
 import notificationRoutes from './notification.routes.js';
 import { echeanceRouter, fraisRouter, paiementRouter } from './comptabilite.routes.js';
 import { planningRouter, statistiqueRouter } from './planning.routes.js';
+import journalRoutes from './journal.routes.js';
+import sauvegardeRoutes from './sauvegarde.routes.js';
+import rapportRoutes from './rapport.routes.js';
 
 const router = Router();
 
@@ -40,5 +43,8 @@ router.use('/echeances', echeanceRouter);
 router.use('/paiements', paiementRouter);
 router.use('/planning', planningRouter);
 router.use('/statistiques', statistiqueRouter);
+router.use('/journal', journalRoutes);
+router.use('/sauvegardes', sauvegardeRoutes);
+router.use('/rapports', rapportRoutes);
 
 export default router;

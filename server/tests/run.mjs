@@ -18,6 +18,9 @@ const SUITES = [
   ['Phase 6 — Charte, emails et documents', 'phase6-charte.test.mjs'],
   ['Phase 7 — Notation, UE et credits ECTS', 'phase7-notation.test.mjs'],
   ['Phase 8 — Credits, types et appariement en UE', 'phase8-appariement.test.mjs'],
+  ['Phase 9 — Immuabilite des notes enregistrees', 'phase9-verrouillage.test.mjs'],
+  ['Phase 10 — Planification des sauvegardes', 'phase10-sauvegarde.test.mjs'],
+  ['Phase 11 — Periodes des rapports de direction', 'phase11-periodes.test.mjs'],
 ];
 
 /** Execute une suite et renvoie son code de sortie. */

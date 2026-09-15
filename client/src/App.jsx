@@ -63,6 +63,8 @@ const ECRANS = {
   '/paiements': lazy(() => import('./pages/paiements/Paiements.jsx')),
   '/planning': lazy(() => import('./pages/planning/Planning.jsx')),
   '/statistiques': lazy(() => import('./pages/statistiques/Statistiques.jsx')),
+  '/journal': lazy(() => import('./pages/journal/Journal.jsx')),
+  '/rapports': lazy(() => import('./pages/rapports/Rapports.jsx')),
 };
 
 // Le tableau de bord a sa propre route : il est exclu de la generation.

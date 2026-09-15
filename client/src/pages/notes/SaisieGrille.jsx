@@ -18,7 +18,7 @@
  * visible tant qu'il reste quelque chose a enregistrer.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, Check, Eye, EyeOff, Save } from 'lucide-react';
+import { AlertTriangle, Check, Eye, EyeOff, Lock, Save } from 'lucide-react';
 import {
   useEnregistrerGrille, useGrilleMatiere, useMesEnseignements, usePublierGrille,
 } from '../../hooks/useScolarite.js';
@@ -26,6 +26,7 @@ import Bouton from '../../components/ui/Bouton.jsx';
 import ChampSelect from '../../components/ui/ChampSelect.jsx';
 import Chargement from '../../components/ui/Chargement.jsx';
 import EtatVide from '../../components/ui/EtatVide.jsx';
+import Modale from '../../components/ui/Modale.jsx';
 
 const SEMESTRES = [
   { valeur: 'semestre1', libelle: 'Semestre 1' },
@@ -42,8 +43,28 @@ const versNombre = (texte) => {
 
 const horsBornes = (valeur) => valeur !== null && (valeur === undefined || valeur < 0 || valeur > 20);
 
-/** Cellule de saisie d'une note. */
-function CelluleNote({ valeur, onChange, onEntree, invalide, aria, inputRef }) {
+/**
+ * Cellule de saisie d'une note.
+ *
+ * Une note deja enregistree n'est plus un champ : elle s'affiche en clair, sous
+ * cadenas. Laisser l'apparence d'un champ modifiable pour refuser ensuite la
+ * modification serait deloyal — l'interface doit dire la regle, pas la piéger.
+ */
+function CelluleNote({ valeur, onChange, onEntree, invalide, aria, inputRef, figee }) {
+  if (figee) {
+    return (
+      <span
+        className="inline-flex w-20 items-center justify-center gap-1 rounded-lg border
+          border-slate-200 bg-slate-50 px-2 py-1.5 text-sm tabular-nums text-slate-600"
+        title="Note enregistrée : elle ne peut plus être modifiée. Signalez toute erreur à la direction."
+      >
+        <Lock className="h-3 w-3 shrink-0 text-slate-400" aria-hidden="true" />
+        {valeur ?? '—'}
+        <span className="sr-only">{aria} — enregistrée, non modifiable</span>
+      </span>
+    );
+  }
+
   return (
     <input
       ref={inputRef}
@@ -77,6 +98,9 @@ export default function SaisieGrille() {
 
   /** Modifications non encore enregistrees, indexees par identifiant d'etudiant. */
   const [brouillon, setBrouillon] = useState({});
+
+  /** Derniere marche avant un enregistrement definitif. */
+  const [confirmation, setConfirmation] = useState(false);
 
   const champs = useRef({});
 
@@ -143,13 +167,31 @@ export default function SaisieGrille() {
     }));
   }, []);
 
-  /** Descend d'une ligne dans la meme colonne. */
+  /**
+   * Descend dans la meme colonne, en SAUTANT les cases figees.
+   *
+   * Une note deja enregistree n'a pas de champ : s'arreter dessus casserait la
+   * saisie au clavier au premier etudiant deja note, alors que c'est justement
+   * la situation courante quand on complete les notes d'examen en janvier.
+   */
   const descendre = (index, champ) => {
-    const suivant = champs.current[`${index + 1}-${champ}`];
-    if (suivant) suivant.focus();
+    for (let suivant = index + 1; suivant < lignes.length; suivant += 1) {
+      const cellule = champs.current[`${suivant}-${champ}`];
+      if (cellule && document.contains(cellule)) {
+        cellule.focus();
+        return;
+      }
+    }
   };
 
-  const soumettre = () => {
+  /**
+   * Envoi effectif, declenche seulement apres confirmation explicite.
+   *
+   * Annuler la confirmation NE TOUCHE PAS au brouillon : on revient a la grille
+   * telle qu'on l'avait remplie. C'est tout l'interet d'une derniere marche
+   * avant un enregistrement qu'on ne pourra plus defaire.
+   */
+  const envoyer = () => {
     const aEnvoyer = Object.entries(brouillon).map(([etudiant, valeurs]) => {
       const ligne = { etudiant };
       if ('noteClasse' in valeurs) ligne.noteClasse = versNombre(valeurs.noteClasse);
@@ -159,9 +201,34 @@ export default function SaisieGrille() {
 
     enregistrer.mutate(
       { matiere: matiereId, semestre, lignes: aEnvoyer },
-      { onSuccess: () => setBrouillon({}) }
+      {
+        onSuccess: () => {
+          setBrouillon({});
+          setConfirmation(false);
+        },
+      }
     );
   };
+
+  /** Recapitulatif montre dans la confirmation : ce qui part, et pour qui. */
+  const recapitulatif = useMemo(() => {
+    const parEtudiant = new Map(lignes.map((l) => [String(l.etudiant.id), l]));
+    return Object.entries(brouillon).map(([id, valeurs]) => {
+      const ligne = parEtudiant.get(String(id));
+      return {
+        id,
+        nom: ligne ? `${ligne.etudiant.nom} ${ligne.etudiant.prenom}` : id,
+        classe: 'noteClasse' in valeurs ? versNombre(valeurs.noteClasse) : undefined,
+        examen: 'noteExamen' in valeurs ? versNombre(valeurs.noteExamen) : undefined,
+      };
+    });
+  }, [brouillon, lignes]);
+
+  const notesAEnvoyer = recapitulatif.reduce(
+    (total, r) => total + (r.classe !== undefined && r.classe !== null ? 1 : 0)
+      + (r.examen !== undefined && r.examen !== null ? 1 : 0),
+    0
+  );
 
   const publiee = grille?.lignes?.some((l) => l.publiee);
 
@@ -256,7 +323,7 @@ export default function SaisieGrille() {
               </Bouton>
 
               <Bouton
-                onClick={soumettre}
+                onClick={() => setConfirmation(true)}
                 disabled={!modifiees || invalides > 0}
                 chargement={enregistrer.isPending}
                 title={invalides ? 'Corrigez les notes hors bornes' : undefined}
@@ -317,6 +384,7 @@ export default function SaisieGrille() {
                         <CelluleNote
                           inputRef={(el) => { champs.current[`${index}-classe`] = el; }}
                           valeur={ligne.noteClasse}
+                          figee={ligne.figees?.noteClasse}
                           invalide={horsBornes(classeVal)}
                           aria={`Note de classe de ${ligne.etudiant.nom} ${ligne.etudiant.prenom}`}
                           onChange={(v) => modifier(ligne.etudiant.id, 'noteClasse', v)}
@@ -328,6 +396,7 @@ export default function SaisieGrille() {
                         <CelluleNote
                           inputRef={(el) => { champs.current[`${index}-examen`] = el; }}
                           valeur={ligne.noteExamen}
+                          figee={ligne.figees?.noteExamen}
                           invalide={horsBornes(examenVal)}
                           aria={`Note d’examen de ${ligne.etudiant.nom} ${ligne.etudiant.prenom}`}
                           onChange={(v) => modifier(ligne.etudiant.id, 'noteExamen', v)}
@@ -361,6 +430,77 @@ export default function SaisieGrille() {
             {grille.ponderation.poidsExamen}) ÷{' '}
             {grille.ponderation.poidsClasse + grille.ponderation.poidsExamen}.
           </p>
+
+          {/* --- Derniere marche avant l'enregistrement definitif --- */}
+          <Modale
+            ouverte={confirmation}
+            onFermer={() => setConfirmation(false)}
+            titre="Confirmer l’enregistrement"
+            largeur="md"
+            pied={
+              <>
+                <Bouton
+                  variante="secondaire"
+                  onClick={() => setConfirmation(false)}
+                  disabled={enregistrer.isPending}
+                >
+                  Revenir à la saisie
+                </Bouton>
+                <Bouton onClick={envoyer} chargement={enregistrer.isPending}>
+                  <Save className="h-4 w-4" aria-hidden="true" />
+                  Enregistrer définitivement
+                </Bouton>
+              </>
+            }
+          >
+            <div className="space-y-4">
+              <div className="flex gap-3 rounded-xl border border-retard/30 bg-retard-fond p-3">
+                <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-retard" aria-hidden="true" />
+                <p className="text-sm text-slate-700">
+                  <strong className="text-retard">Une note enregistrée est définitive.</strong>{' '}
+                  Vous ne pourrez plus la modifier vous-même. En cas d’erreur, il faudra la
+                  signaler à la direction, seule habilitée à la corriger.
+                </p>
+              </div>
+
+              <p className="text-sm text-slate-600">
+                <strong>{notesAEnvoyer}</strong> note{notesAEnvoyer > 1 ? 's' : ''} pour{' '}
+                <strong>{recapitulatif.length}</strong> étudiant
+                {recapitulatif.length > 1 ? 's' : ''} — {grille.matiere.nom},{' '}
+                {semestre === 'semestre1' ? 'semestre 1' : 'semestre 2'}.
+              </p>
+
+              <div className="max-h-64 overflow-y-auto rounded-xl border border-slate-200">
+                <table className="w-full text-sm">
+                  <thead className="sticky top-0 bg-slate-50">
+                    <tr className="text-left">
+                      <th scope="col" className="px-3 py-2 label-indicateur text-slate-500">Étudiant</th>
+                      <th scope="col" className="px-3 py-2 label-indicateur text-slate-500">Classe</th>
+                      <th scope="col" className="px-3 py-2 label-indicateur text-slate-500">Examen</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {recapitulatif.map((r) => (
+                      <tr key={r.id}>
+                        <td className="px-3 py-1.5 font-medium text-marine">{r.nom}</td>
+                        <td className="px-3 py-1.5 tabular-nums text-slate-600">
+                          {r.classe ?? <span className="text-slate-300">—</span>}
+                        </td>
+                        <td className="px-3 py-1.5 tabular-nums text-slate-600">
+                          {r.examen ?? <span className="text-slate-300">—</span>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <p className="text-xs text-slate-500">
+                « Revenir à la saisie » ferme cette fenêtre sans rien envoyer : vos notes
+                restent dans la grille.
+              </p>
+            </div>
+          </Modale>
         </>
       )}
     </div>

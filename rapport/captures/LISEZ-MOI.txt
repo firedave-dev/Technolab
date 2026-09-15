@@ -1,0 +1,35 @@
+CAPTURES D'ECRAN DU RAPPORT
+===========================
+
+Deposez ici vos captures de la plateforme, en PNG, avec EXACTEMENT ces noms.
+Le generateur les inserera automatiquement a la bonne place, avec leur legende
+et leur numero de figure. Un fichier absent devient un cadre vide portant la
+mention « capture a inserer » : le rapport se genere quand meme, et vous pouvez
+completer au fur et a mesure.
+
+  01-accueil.png              Page d'accueil publique du site
+  02-formations.png           Page Formations
+  03-admissions.png           Page Admissions
+  04-connexion.png            Page de connexion
+  05-tableau-bord-admin.png   Tableau de bord de l'administrateur
+  06-utilisateurs.png         Liste et gestion des comptes
+  07-etudiants.png            Liste des etudiants
+  08-fiche-etudiant.png       Fiche individuelle d'un etudiant
+  09-classes.png              Gestion des classes
+  10-matieres.png             Gestion des matieres
+  11-unites-enseignement.png  Constitution des unites d'enseignement
+  12-saisie-notes.png         Grille de saisie des notes
+  13-bulletin.png             Bulletin officiel (apercu ou PDF)
+  14-absences.png             Suivi des absences
+  15-paiements.png            Encaissement et suivi de la scolarite
+  16-recu.png                 Recu de paiement (PDF)
+  17-emargement.png           Liste d'emargement (PDF)
+  18-planning.png             Emploi du temps
+  19-statistiques.png         Tableau de bord statistique
+  20-espace-parent.png        Espace parental
+  21-espace-etudiant.png      Espace etudiant
+
+CONSEILS
+  - Plein ecran, navigateur en mode clair, largeur ~1400 px.
+  - Sous Windows : touche Impr. ecran, ou Win+Maj+S pour une zone precise.
+  - Masquez toute donnee personnelle reelle avant la capture.

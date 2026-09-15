@@ -12,6 +12,7 @@ import Bouton from '../../components/ui/Bouton.jsx';
 import ChampTexte from '../../components/ui/ChampTexte.jsx';
 import ChampSelect from '../../components/ui/ChampSelect.jsx';
 import { useMatieres } from '../../hooks/useScolarite.js';
+import { useClasses } from '../../hooks/useGestion.js';
 import { useCreerCreneau, useModifierCreneau, useSallesPlanning } from '../../hooks/usePlanning.js';
 
 const JOURS = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'].map((j) => ({
@@ -36,6 +37,7 @@ const schema = z
     heureFin: heure,
     salle: z.string().max(40).optional(),
     type: z.string().optional(),
+    classesAssociees: z.array(z.string()).max(5).optional(),
   })
   .refine((d) => d.heureFin > d.heureDebut, {
     message: 'L heure de fin doit suivre l heure de debut',
@@ -49,6 +51,7 @@ const valeursDepuis = (creneau, jourPrerempli) => ({
   heureFin: creneau?.heureFin || '10:00',
   salle: creneau?.salle || '',
   type: creneau?.type || 'cours',
+  classesAssociees: (creneau?.classesAssociees || []).map((c) => c?._id || c),
 });
 
 export default function FormulaireCreneau({ ouverte, onFermer, creneau, classeFiltre, jourPrerempli }) {
@@ -58,9 +61,10 @@ export default function FormulaireCreneau({ ouverte, onFermer, creneau, classeFi
 
   const { data: matieresData } = useMatieres({ actif: 'true', classe: classeFiltre || undefined });
   const { data: sallesData } = useSallesPlanning();
+  const { data: classesData } = useClasses({ limite: 100 });
 
   const {
-    register, handleSubmit, reset, watch,
+    register, handleSubmit, reset, watch, setValue,
     formState: { errors, isSubmitting },
   } = useForm({ resolver: zodResolver(schema), defaultValues: valeursDepuis(creneau, jourPrerempli) });
 
@@ -70,6 +74,25 @@ export default function FormulaireCreneau({ ouverte, onFermer, creneau, classeFi
 
   const matieres = matieresData?.matieres || [];
   const matiereChoisie = matieres.find((m) => m.id === watch('matiere'));
+
+  /*
+   * COURS MUTUALISE : classes qui suivent la seance en plus de celle de la
+   * matiere. La classe de la matiere est evidemment exclue de la liste — on ne
+   * peut pas associer une classe a elle-meme.
+   */
+  const associees = watch('classesAssociees') || [];
+  const classePrincipale = matiereChoisie?.classe?._id || matiereChoisie?.classe?.id;
+  const classesProposees = (classesData?.classes || [])
+    .filter((c) => String(c._id ?? c.id) !== String(classePrincipale));
+
+  const basculerClasse = (id) => {
+    const presente = associees.some((c) => String(c) === String(id));
+    setValue(
+      'classesAssociees',
+      presente ? associees.filter((c) => String(c) !== String(id)) : [...associees, id],
+      { shouldDirty: true }
+    );
+  };
 
   const onSubmit = async (valeurs) => {
     if (modeEdition) {
@@ -117,6 +140,42 @@ export default function FormulaireCreneau({ ouverte, onFermer, creneau, classeFi
           disabled={modeEdition}
           {...register('matiere')}
         />
+
+        {/*
+          COURS MUTUALISE — cases a cocher plutot qu'une liste deroulante
+          multiple : on doit voir d'un coup d'oeil quelles classes sont
+          reunies, sans deplier de menu.
+        */}
+        {classesProposees.length > 0 && (
+          <fieldset className="sm:col-span-2">
+            <legend className="label">Cours mutualisé</legend>
+            <p className="mb-2 text-xs text-slate-500">
+              Classes qui suivent cette séance en plus de
+              {' '}<strong>{matiereChoisie?.classe?.nom || 'la classe de la matière'}</strong>.
+              Une seule séance est créée : un seul professeur, une seule salle.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {classesProposees.map((c) => {
+                const id = c._id ?? c.id;
+                const coche = associees.some((a) => String(a) === String(id));
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => basculerClasse(id)}
+                    aria-pressed={coche}
+                    className={`rounded-lg border px-3 py-1.5 text-sm transition
+                      ${coche
+                        ? 'border-ista bg-ista/10 font-medium text-ista'
+                        : 'border-slate-200 text-slate-600 hover:border-slate-300'}`}
+                  >
+                    {c.nom}
+                  </button>
+                );
+              })}
+            </div>
+          </fieldset>
+        )}
 
         <ChampSelect label="Jour" options={JOURS} erreur={errors.jour?.message} {...register('jour')} />
         <ChampSelect label="Type de seance" options={TYPES} {...register('type')} />

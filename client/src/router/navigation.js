@@ -5,8 +5,7 @@
  */
 import {
   BarChart3, BookOpen, CalendarClock, CalendarDays, ClipboardList, CreditCard,
-  FileSpreadsheet, GraduationCap, LayoutDashboard, School, UserCog, Users, UserSquare2, Layers,
-} from 'lucide-react';
+  FileSpreadsheet, GraduationCap, LayoutDashboard, School, UserCog, Users, UserSquare2, Layers, ScrollText, FileText,} from 'lucide-react';
 import { ADMIN_ROLES, ROLES, STAFF_ROLES } from '../utils/roles.js';
 
 /** Derniere phase livree : sert a distinguer les modules actifs des placeholders. */
@@ -112,6 +111,20 @@ export const NAVIGATION = [
     chemin: '/statistiques',
     libelle: 'Statistiques',
     icone: BarChart3,
+    roles: ADMIN_ROLES,
+    groupe: 'pilotage',
+  },
+  {
+    chemin: '/rapports',
+    libelle: 'Rapports',
+    icone: FileText,
+    roles: ADMIN_ROLES,
+    groupe: 'pilotage',
+  },
+  {
+    chemin: '/journal',
+    libelle: 'Journal des actions',
+    icone: ScrollText,
     roles: ADMIN_ROLES,
     groupe: 'pilotage',
   },

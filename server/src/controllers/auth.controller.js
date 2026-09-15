@@ -81,6 +81,11 @@ export const login = catchAsync(async (req, res) => {
   user.derniereConnexion = new Date();
   await user.save({ validateBeforeSave: false });
 
+  // La requete vient d'authentifier quelqu'un : on l'attache pour que le
+  // journal consigne un nom et un role, et non « anonyme ». L'intergiciel
+  // d'authentification, lui, ne s'execute evidemment pas sur cette route.
+  req.user = user;
+
   await envoyerSession(user, req, res);
 });
 

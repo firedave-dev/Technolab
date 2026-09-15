@@ -5,7 +5,7 @@
  * se chevauchent (debut1 < fin2 et debut2 < fin1) et qu'ils partagent une ressource :
  * la meme classe, le meme professeur ou la meme salle.
  */
-import { Creneau, JOURS } from '../models/Creneau.js';
+import { Creneau, JOURS, classesDuCreneau } from '../models/Creneau.js';
 
 /** Deux plages HH:MM se chevauchent-elles ? */
 export const seChevauchent = (debut1, fin1, debut2, fin2) => debut1 < fin2 && debut2 < fin1;
@@ -14,8 +14,23 @@ export const seChevauchent = (debut1, fin1, debut2, fin2) => debut1 < fin2 && de
  * Cherche un conflit pour le creneau propose.
  * @returns un message explicite, ou null si le creneau est libre.
  */
-export async function detecterConflitCreneau({ id, jour, heureDebut, heureFin, classe, professeur, salle, anneeScolaire }) {
-  const ressources = [{ classe }];
+export async function detecterConflitCreneau({
+  id, jour, heureDebut, heureFin, classe, classesAssociees = [],
+  professeur, salle, anneeScolaire,
+}) {
+  /*
+   * UNE SEANCE MUTUALISEE MOBILISE PLUSIEURS CLASSES A LA FOIS.
+   *
+   * Le controle porte donc sur l'ensemble des classes concernees, pas seulement
+   * sur la principale : reunir la L1 Informatique et la L1 Finance en anglais ne
+   * doit pas etre possible si l'une des deux a deja cours a cette heure.
+   */
+  const concernees = [classe, ...classesAssociees].filter(Boolean).map(String);
+
+  const ressources = [
+    { classe: { $in: concernees } },
+    { classesAssociees: { $in: concernees } },
+  ];
   if (professeur) ressources.push({ professeur });
   if (salle) ressources.push({ salle });
 
@@ -27,6 +42,7 @@ export async function detecterConflitCreneau({ id, jour, heureDebut, heureFin, c
     $or: ressources,
   })
     .populate('classe', 'nom')
+    .populate('classesAssociees', 'nom')
     .populate('professeur', 'nom prenom')
     .populate('matiere', 'nom')
     .lean();
@@ -36,8 +52,15 @@ export async function detecterConflitCreneau({ id, jour, heureDebut, heureFin, c
 
   const plage = `${conflit.heureDebut}-${conflit.heureFin}`;
 
-  if (String(conflit.classe?._id) === String(classe)) {
-    return `La classe ${conflit.classe.nom} a deja "${conflit.matiere?.nom}" le ${jour} de ${plage}`;
+  // Le message nomme la classe REELLEMENT en cause, qui n'est pas forcement la
+  // classe principale du creneau existant.
+  const dejaOccupees = classesDuCreneau(conflit);
+  const commune = concernees.find((c) => dejaOccupees.includes(c));
+
+  if (commune) {
+    const toutes = [conflit.classe, ...(conflit.classesAssociees || [])];
+    const nom = toutes.find((c) => String(c?._id) === commune)?.nom ?? 'La classe';
+    return `${nom} a deja "${conflit.matiere?.nom}" le ${jour} de ${plage}`;
   }
   if (professeur && String(conflit.professeur?._id) === String(professeur)) {
     return `${conflit.professeur.prenom} ${conflit.professeur.nom} enseigne deja le ${jour} de ${plage}`;

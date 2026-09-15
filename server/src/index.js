@@ -2,6 +2,7 @@
 import { env } from './config/env.js';
 import { connectDB } from './config/db.js';
 import { createApp } from './app.js';
+import { arreterOrdonnanceur, demarrerOrdonnanceur } from './services/ordonnanceur.service.js';
 
 async function demarrer() {
   try {
@@ -15,9 +16,21 @@ async function demarrer() {
       console.log(`[server] API TechnoLAB-ISTA a l ecoute sur le port ${env.port} (${env.nodeEnv})`);
     });
 
+    /*
+     * Sauvegarde quotidienne.
+     *
+     * Mise en place APRES l'ouverture du port, et sans `await` : une base de
+     * sauvegarde injoignable ne doit pas retarder — encore moins empecher — la
+     * mise en service de l'API.
+     */
+    demarrerOrdonnanceur().catch((err) =>
+      console.error('[sauvegarde] Mise en place impossible :', err.message)
+    );
+
     // Arret propre
     const arret = (signal) => {
       console.log(`[server] ${signal} recu, arret en cours...`);
+      arreterOrdonnanceur();
       server.close(() => process.exit(0));
     };
     process.on('SIGINT', () => arret('SIGINT'));

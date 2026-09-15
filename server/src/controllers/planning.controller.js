@@ -13,6 +13,7 @@ import { construireGrille, detecterConflitCreneau } from '../services/planning.s
 const PEUPLE = [
   { path: 'matiere', select: 'nom code coefficient' },
   { path: 'classe', select: 'nom niveau filiere anneeScolaire' },
+  { path: 'classesAssociees', select: 'nom niveau filiere' },
   { path: 'professeur', select: 'nom prenom email' },
 ];
 
@@ -46,14 +47,22 @@ export const lister = catchAsync(async (req, res) => {
     filtre.professeur = req.user._id;
   }
 
+  /*
+   * Une classe assiste a une seance soit comme classe PRINCIPALE, soit comme
+   * classe ASSOCIEE a un cours mutualise. Filtrer sur le seul champ `classe`
+   * ferait disparaitre de son emploi du temps les cours qu'elle suit en commun
+   * avec une autre filiere.
+   */
+  const surLaClasse = (valeur) => ({ $or: [{ classe: valeur }, { classesAssociees: valeur }] });
+
   const autorisees = await classesAutorisees(req.user);
   if (autorisees !== null) {
     if (!autorisees.length) return res.json({ success: true, ...construireGrille([]), creneaux: [] });
 
     const demandee = classe && autorisees.some((c) => String(c) === String(classe));
-    filtre.classe = demandee ? classe : { $in: autorisees };
+    Object.assign(filtre, surLaClasse(demandee ? classe : { $in: autorisees }));
   } else if (classe) {
-    filtre.classe = classe;
+    Object.assign(filtre, surLaClasse(classe));
   }
 
   const creneaux = await Creneau.find(filtre)
@@ -82,6 +91,7 @@ export const creer = catchAsync(async (req, res) => {
     ...req.body,
     classe: matiere.classe,
     professeur: matiere.professeur,
+    classesAssociees: req.body.classesAssociees || [],
     anneeScolaire: req.body.anneeScolaire || matiere.anneeScolaire,
   };
 
@@ -106,6 +116,7 @@ export const modifier = catchAsync(async (req, res) => {
     heureFin: req.body.heureFin || creneau.heureFin,
     salle: req.body.salle ?? creneau.salle,
     classe: creneau.classe,
+    classesAssociees: req.body.classesAssociees ?? creneau.classesAssociees ?? [],
     professeur: creneau.professeur,
     anneeScolaire: creneau.anneeScolaire,
   };

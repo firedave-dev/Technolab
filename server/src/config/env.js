@@ -21,6 +21,25 @@ export const env = {
   isProd: process.env.NODE_ENV === 'production',
   clientUrl: process.env.CLIENT_URL || 'http://localhost:5173',
   mongoUri: process.env.MONGODB_URI,
+  /*
+   * Sauvegarde automatique vers une SECONDE base MongoDB.
+   *
+   * Volontairement facultative : sans `MONGODB_SAUVEGARDE_URI`, le dispositif
+   * reste eteint et l'application demarre normalement. Un developpement local
+   * n'a pas a repliquer quoi que ce soit, et exiger la variable empecherait
+   * simplement le serveur de demarrer.
+   *
+   * La base de destination doit etre une GRAPPE DISTINCTE, chez un fournisseur
+   * distinct si possible. Sauvegarder dans la meme grappe protege d'une fausse
+   * manoeuvre, pas d'une panne : les deux disparaitraient ensemble.
+   */
+  sauvegarde: {
+    uri: process.env.MONGODB_SAUVEGARDE_URI || '',
+    /** Heure locale du serveur, 0 a 23. 2 h du matin : aucune activite. */
+    heure: Math.min(23, Math.max(0, Number(process.env.SAUVEGARDE_HEURE ?? 2))),
+    /** Nombre de jours conserves. Au-dela, les plus anciens sont effaces. */
+    retention: Math.max(1, Number(process.env.SAUVEGARDE_RETENTION ?? 7)),
+  },
   jwt: {
     accessSecret: process.env.JWT_ACCESS_SECRET,
     refreshSecret: process.env.JWT_REFRESH_SECRET,
